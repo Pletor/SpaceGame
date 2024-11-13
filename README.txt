@@ -9,8 +9,8 @@ General
 - After dependencies are install, you can start the project by running command
   "yarn run server:start" which will run local web server and you can view the
   running game in the browser by visiting one http://localhost:8080/
-- You can find documentation at https://photonstorm.github.io/phaser3-docs/ and
-  examples at https://phaser.io/examples/
+- You can find documentation at https://docs.phaser.io/api-documentation and
+  examples at https://phaser.io/examples/v3.85.0
 - After you finish your work, zip the project again and send it back. Exclude
   directory "node_modules" from your zip archive, to prevent sending unnecessary
   files.
