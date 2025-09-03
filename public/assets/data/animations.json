@@ -1,0 +1,38 @@
+[
+  {
+    "key": "shipEngineThrust",
+    "assetKey": "shipEngineThrust",
+    "frameRate": 30,
+    "repeat": -1
+  },
+  {
+    "key": "laserBlue01",
+    "assetKey": "laserBlue01",
+    "frameRate": 30,
+    "repeat": -1
+  },
+  {
+    "key": "explosion",
+    "assetKey": "explosion",
+    "frameRate": 30,
+    "repeat": 0
+  },
+  {
+    "key": "black",
+    "assetKey": "black",
+    "frameRate": 15,
+    "repeat": -1
+  },
+  {
+    "key": "blue",
+    "assetKey": "blue",
+    "frameRate": 15,
+    "repeat": -1
+  },
+  {
+    "key": "darkPurple",
+    "assetKey": "darkPurple",
+    "frameRate": 15,
+    "repeat": -1
+  }
+]

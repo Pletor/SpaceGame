@@ -1,0 +1,90 @@
+[
+  {
+    "type": "image",
+    "key": "playerShip1_blue",
+    "url": "assets/sprites/game/playerShip1_blue.png"
+  },
+  {
+    "type": "image",
+    "key": "shipEngine",
+    "url": "assets/sprites/game/Parts/engine1.png"
+  },
+  {
+    "type": "image",
+    "key": "shipEngineThrust",
+    "url": "assets/sprites/game/Effects/fire01.png"
+  },
+  {
+    "type": "image",
+    "key": "laserBlue01",
+    "url": "assets/sprites/game/Lasers/laserBlue01.png"
+  },
+  {
+    "type": "image",
+    "key": "black",
+    "url": "assets/sprites/game/Backgrounds/black.png"
+  },
+  {
+    "type": "image",
+    "key": "blue",
+    "url": "assets/sprites/game/Backgrounds/blue.png"
+  },
+  {
+    "type": "image",
+    "key": "darkPurple",
+    "url": "assets/sprites/game/Backgrounds/darkPurple.png"
+  },
+  {
+    "type": "image",
+    "key": "enemyBlack1",
+    "url": "assets/sprites/game/Enemies/enemyBlack1.png"
+  },
+  {
+    "type": "image",
+    "key": "enemyBlue1",
+    "url": "assets/sprites/game/Enemies/enemyBlue1.png"
+  },
+  {
+    "type": "image",
+    "key": "enemyRed1",
+    "url": "assets/sprites/game/Enemies/enemyRed1.png"
+  },
+  {
+    "type": "spritesheet",
+    "key": "explosion",
+    "url": "assets/sprites/game/Effects/fire01.png",
+    "frameConfig": { "frameWidth": 32, "frameHeight": 32 }
+  },
+  {
+    "type": "audio",
+    "key": "explosion",
+    "url": [
+      "assets/sounds/sfx_lose.mp3",
+      "assets/sounds/sfx_lose.ogg"
+    ]
+  },
+  {
+    "type": "audio",
+    "key": "shot1",
+    "url": [
+      "assets/sounds/sfx_laser1.mp3",
+      "assets/sounds/sfx_laser1.ogg"
+    ]
+  },
+  {
+    "type": "audio",
+    "key": "hit",
+    "url": [
+      "assets/sounds/sfx_shieldDown.mp3",
+      "assets/sounds/sfx_shieldDown.ogg"
+    ]
+  },
+  {
+    "type": "audio",
+    "key": "bg",
+    "url": [
+      "assets/music/background_loop.mp3",
+      "assets/music/background_loop.ogg"
+    ]
+  }
+]

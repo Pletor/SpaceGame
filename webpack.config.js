@@ -29,6 +29,16 @@ module.exports = {
     clean: true
   },
   devtool: 'inline-source-map',
+  devServer: {
+    static: {
+      directory: path.join(__dirname, 'public'),
+      publicPath: '/',
+    },
+    compress: true,
+    port: 8080,
+    open: false,
+    hot: true
+  },
   module: {
     rules: [{
       test: /\.tsx?$/,
