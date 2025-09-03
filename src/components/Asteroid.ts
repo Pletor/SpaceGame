@@ -1,3 +1,19 @@
+/**
+ * Asteroid - hlavní nepřátelský objekt ve hře
+ *
+ * Funkce:
+ * - Pohybuje se dolů obrazovkou s konfigurovatelnou rychlostí
+ * - Má konfigurovatelné zdraví a hodnotu skóre
+ * - Při zničení se rozpadá na menší fragmenty
+ * - Zobrazuje health bar pro asteroidy s více než 1 životem
+ *
+ * Princip:
+ * Component-based architektura s HealthComponent a ColliderComponent
+ * Physics-driven movement s Arcade Physics
+ * Visual feedback s health barem a shatter efektem
+ * Event-driven communication pro audio a skóre systémy
+ */
+
 import * as Phaser from 'phaser';
 import { HealthComponent } from './health/HealthComponent';
 import { ColliderComponent } from './collider/ColliderComponent';
@@ -6,7 +22,7 @@ import { AsteroidShard } from './AsteroidShard';
 import { AsteroidHealthBarComponent } from './ui/AsteroidHealthBarComponent';
 
 export class Asteroid extends Phaser.GameObjects.Sprite {
-    // Components
+    // Komponenty
     public healthComponent!: HealthComponent;
     public colliderComponent!: ColliderComponent;
     private eventBusComponent: EventBusComponent;
@@ -16,7 +32,7 @@ export class Asteroid extends Phaser.GameObjects.Sprite {
     private maxHealth: number;
 
     constructor(scene: Phaser.Scene, x: number, y: number, eventBusComponent: EventBusComponent, health: number = 3, speed: number = 100, scoreValue: number = 100) {
-        // Use meteor texture for asteroids
+        // Použít meteor texturu pro asteroidy
         super(scene, x, y, 'meteor1');
 
         this.eventBusComponent = eventBusComponent;
@@ -24,143 +40,199 @@ export class Asteroid extends Phaser.GameObjects.Sprite {
         this.scoreValue = scoreValue;
         this.maxHealth = health;
 
-        // Add to scene
+        // Inicializovat asteroid
+        this.initializeAsteroid(scene, health);
+    }
+
+    /**
+     * Inicializuje asteroid s fyzikou a komponentami
+     */
+    private initializeAsteroid(scene: Phaser.Scene, health: number): void {
+        // Přidat do scény
         scene.add.existing(this);
 
-        // Enable physics
+        // Povolit fyziku
         scene.physics.add.existing(this);
 
-        // Set up physics body
+        // Nastavit fyzikální tělo
+        this.setupPhysicsBody();
+
+        // Nastavit hloubku pro renderovací pořadí
+        this.setDepth(1);
+
+        // Vytvořit komponenty se specifikovaným zdravím
+        this.createComponents(health);
+
+        // Vytvořit health bar komponentu (pouze pro asteroidy s více než 1 životem)
+        this.createHealthBarIfNeeded(health);
+
+        // Nastavit event listenery
+        this.setupEventListeners();
+
+        // Začít pohyb dolů se specifikovanou rychlostí
+        this.startMovement();
+    }
+
+    /**
+     * Nastaví fyzikální tělo asteroidu
+     */
+    private setupPhysicsBody(): void {
         const body = this.body as Phaser.Physics.Arcade.Body;
         body.setSize(this.width * 0.8, this.height * 0.8);
         body.setOffset(this.width * 0.1, this.height * 0.1);
+    }
 
-        // Set depth for rendering order
-        this.setDepth(1);
-
-        // Create components with specified health
-        this.createComponents(health);
-
-        // Create health bar component (only for asteroids with more than 1 health)
+    /**
+     * Vytvoří health bar pokud je potřeba
+     */
+    private createHealthBarIfNeeded(health: number): void {
         if (health > 1) {
-            this.healthBarComponent = new AsteroidHealthBarComponent(scene, this, health);
+            this.healthBarComponent = new AsteroidHealthBarComponent(this.scene, this, health);
         }
+    }
 
-        // Set up event listeners
-        this.setupEventListeners();
-
-        // Start moving down at specified speed
+    /**
+     * Spustí pohyb asteroidu
+     */
+    private startMovement(): void {
         const physicsBody = this.body as Phaser.Physics.Arcade.Body;
         physicsBody.setVelocityY(this.speed);
     }
 
+    /**
+     * Vytvoří komponenty asteroidu
+     */
     private createComponents(health: number): void {
-        // Health component with specified health
+        // Health komponenta se specifikovaným zdravím
         this.healthComponent = new HealthComponent(health);
 
-        // Collider component
+        // Collider komponenta
         this.colliderComponent = new ColliderComponent(this.healthComponent, this.eventBusComponent, this);
-    }    private setupEventListeners(): void {
-        // Listen for asteroid destruction
+    }
+
+    /**
+     * Nastaví event listenery pro asteroid
+     */
+    private setupEventListeners(): void {
+        // Poslouchat zničení asteroidu
         this.eventBusComponent.on(CUSTOM_EVENTS.ENEMY_DESTROYED, (asteroid: Asteroid) => {
             if (asteroid === this && this.active) {
-                // Create shatter effect before disabling
+                // Vytvořit shatter efekt před deaktivací
                 this.shatterIntoShards();
 
-                // Destroy health bar immediately when asteroid is destroyed
-                if (this.healthBarComponent) {
-                    this.healthBarComponent.destroy();
-                    this.healthBarComponent = undefined;
-                }
+                // Okamžitě zničit health bar když je asteroid zničen
+                this.destroyHealthBarImmediate();
 
                 this.setActive(false);
                 this.setVisible(false);
-                // Don't destroy immediately
+                // Nezničit okamžitě
             }
         });
 
-        // Update movement
+        // Aktualizovat pohyb
         this.scene.events.on('update', this.update, this);
 
-        // Cleanup on destroy
+        // Vyčistit při zničení
         this.scene.events.on('destroy', this.cleanup, this);
     }
 
+    /**
+     * Okamžitě zničí health bar
+     */
+    private destroyHealthBarImmediate(): void {
+        if (this.healthBarComponent) {
+            this.healthBarComponent.destroy();
+            this.healthBarComponent = undefined;
+        }
+    }
+
+    /**
+     * Hlavní update loop asteroidu
+     */
     public update(): void {
-        // Check if asteroid is still active and scene exists
+        // Zkontrolovat zda je asteroid stále aktivní a scéna existuje
         if (!this.active || !this.scene) return;
 
-        // Update health bar position if it exists and asteroid is still active
+        // Aktualizovat pozici health baru pokud existuje a asteroid je stále aktivní
         if (this.healthBarComponent && this.active) {
             this.healthBarComponent.updatePosition();
         }
 
-        // Check if asteroid is out of bounds (below screen)
+        // Zkontrolovat zda je asteroid mimo hranice (pod obrazovkou)
         if (this.y > this.scene.scale.height + 50) {
             this.destroy();
         }
     }
 
+    /**
+     * Zpracuje poškození asteroidu
+     */
     public takeDamage(): void {
         if (this.healthComponent) {
             this.healthComponent.hit();
 
-            // Update health bar if it exists
+            // Aktualizovat health bar pokud existuje
             if (this.healthBarComponent) {
                 this.healthBarComponent.updateHealth(this.healthComponent.life);
             }
         }
     }
 
+    /**
+     * Vrací hodnotu skóre za zničení
+     */
     public getScoreValue(): number {
         return this.scoreValue;
     }
 
+    /**
+     * Zničí asteroid kompletně
+     */
     public destroyAsteroid(): void {
-        // Immediately destroy health bar
-        if (this.healthBarComponent) {
-            this.healthBarComponent.destroy();
-            this.healthBarComponent = undefined;
-        }
+        // Okamžitě zničit health bar
+        this.destroyHealthBarImmediate();
 
-        // Deactivate asteroid
+        // Deaktivovat asteroid
         this.setActive(false);
         this.setVisible(false);
     }
 
+    /**
+     * Roztříští asteroid na menší fragmenty
+     */
     private shatterIntoShards(): void {
-        // Create 3-5 shards at the asteroid's position
+        // Vytvořit 3-5 fragmentů na pozici asteroidu
         const shardCount = Phaser.Math.Between(3, 5);
 
-        // Get smaller meteor textures for shards
+        // Získat menší meteor textury pro fragmenty
         const shardTextures = ['meteorSmall1', 'meteorSmall2'];
 
         for (let i = 0; i < shardCount; i++) {
-            // Random position near the asteroid center
+            // Náhodná pozice blízko středu asteroidu
             const offsetX = Phaser.Math.Between(-20, 20);
             const offsetY = Phaser.Math.Between(-20, 20);
             const shardX = this.x + offsetX;
             const shardY = this.y + offsetY;
 
-            // Random texture for variety
+            // Náhodná textura pro rozmanitost
             const texture = Phaser.Utils.Array.GetRandom(shardTextures);
 
-            // Create the shard
+            // Vytvořit fragment
             const shard = new AsteroidShard(this.scene, shardX, shardY, texture);
 
-            // Play shatter sound effect
-            if (i === 0) { // Only play sound once per shatter
+            // Přehrát zvuk roztříštění
+            if (i === 0) { // Přehrát zvuk pouze jednou za roztříštění
                 this.eventBusComponent.emit('ASTEROID_SHATTER_SOUND');
             }
         }
     }
 
+    /**
+     * Vyčistí event listenery a komponenty
+     */
     private cleanup(): void {
-        // Destroy health bar component if it still exists
-        if (this.healthBarComponent) {
-            this.healthBarComponent.destroy();
-            this.healthBarComponent = undefined;
-        }
+        // Zničit health bar komponentu pokud stále existuje
+        this.destroyHealthBarImmediate();
 
         if (this.scene && this.scene.events) {
             this.scene.events.off('update', this.update, this);

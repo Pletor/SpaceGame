@@ -1,14 +1,29 @@
+/**
+ * Weapon Component - spravuje zbraňový systém s object poolingem
+ *
+ * Funkce:
+ * - Vytváří a spravuje pool střel pro optimální výkon
+ * - Řídí interval střelby a rychlost střel
+ * - Automaticky recykluje střely které opustily obrazovku
+ * - Poskytuje konfigurovatelné parametry zbraně
+ *
+ * Princip:
+ * Object pooling pattern - pre-vytváří objekty a recykluje je
+ * Event-driven firing - střelba se aktivuje přes input komponentu
+ * Automatické řízení životního cyklu střel s timeoutem
+ */
+
 import * as Phaser from 'phaser';
 import { InputComponent } from '../input/InputComponent';
 import { EventBusComponent, CUSTOM_EVENTS } from '../events/EventBusComponent';
 
 interface BulletConfig {
-    maxCount: number;
-    interval: number;
-    speed: number;
-    lifespan: number;
-    yOffset: number;
-    flipY: boolean;
+    maxCount: number;     // Maximální počet střel v poolu
+    interval: number;     // Interval mezi střelbami (ms)
+    speed: number;        // Rychlost střely
+    lifespan: number;     // Životnost střely (ms)
+    yOffset: number;      // Offset pozice střelby od objektu
+    flipY: boolean;       // Otočení směru střely
 }
 
 export class WeaponComponent {
@@ -30,23 +45,38 @@ export class WeaponComponent {
         this.bulletConfig = bulletConfig;
         this.eventBusComponent = eventBusComponent;
 
-        // Create bullet group
+        // Vytvořit skupinu střel
         this.bulletGroup = gameObject.scene.physics.add.group({
             name: `bullets_${Phaser.Math.RND.uuid()}`,
             enable: false
         });
 
-        // Create bullet pool
+        // Vytvořit pool střel
+        this.createBulletPool();
+
+        // Nastavit event listenery
+        this.setupEventListeners();
+    }
+
+    /**
+     * Vytvoří pool střel pro optimální výkon
+     */
+    private createBulletPool(): void {
         this.bulletGroup.createMultiple({
             key: 'laserBlue01',
             quantity: this.bulletConfig.maxCount,
             active: false,
             visible: false
         });
+    }
 
-        // Listen for physics world step to update bullet lifespans
-        gameObject.scene.physics.world.on('worldstep', this.worldStep, this);
-        gameObject.scene.events.once('destroy', this.cleanup, this);
+    /**
+     * Nastaví event listenery pro čištění
+     */
+    private setupEventListeners(): void {
+        // Poslouchat physics world step pro aktualizaci životnosti střel
+        this.gameObject.scene.physics.world.on('worldstep', this.worldStep, this);
+        this.gameObject.scene.events.once('destroy', this.cleanup, this);
     }
 
     public get bulletGameObjectGroup(): Phaser.Physics.Arcade.Group {
