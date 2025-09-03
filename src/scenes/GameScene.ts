@@ -213,6 +213,11 @@ export class GameScene extends Phaser.Scene {
     private handlePlayerAsteroidCollision(player: any, asteroid: any): void {
         if (!player.active || !asteroid.active) return;
 
+        // Ignorovat kolize s fragmenty asteroidů (shardy)
+        if (asteroid.isAsteroidShard) {
+            return; // Shardy nekolidují s hráčem
+        }
+
         // Správně zničit asteroid s vyčištěním health baru
         this.destroyAsteroidProperly(asteroid);
 
@@ -289,11 +294,10 @@ export class GameScene extends Phaser.Scene {
             // Uložit skóre před zničením
             const actualScoreValue = asteroid.getScoreValue ? asteroid.getScoreValue() : scoreValue;
 
-            // Správně zničit asteroid s vyčištěním health baru
-            this.destroyAsteroidProperly(asteroid);
-
-            // Přehrát zvuk zničení asteroidu
-            this.eventBusComponent.emit(CUSTOM_EVENTS.ENEMY_DESTROYED, asteroid);
+            // Emitovat ENEMY_DESTROYED event pro spuštění shatter efektu
+            if (asteroid.eventBusComponent) {
+                asteroid.eventBusComponent.emit(CUSTOM_EVENTS.ENEMY_DESTROYED, asteroid);
+            }
 
             // Přidat skóre za zničení asteroidu
             this.eventBusComponent.emit(CUSTOM_EVENTS.SCORE_CHANGE, actualScoreValue);

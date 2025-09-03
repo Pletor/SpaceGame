@@ -1,3 +1,19 @@
+/**
+ * Asteroid Shard - fragmenty asteroidů po roztříštění
+ *
+ * Funkce:
+ * - Létají náhodným směrem po roztříštění asteroidu
+ * - Postupně se ztrácejí (fade out) po krátkém čase
+ * - Rotují se s náhodnou rychlostí pro realismus
+ * - Nekolidují s hráčem - pouze vizuální efekt
+ *
+ * Princip:
+ * Physics-based movement s náhodným směrem a rychlostí
+ * Time-based fading s smooth alpha interpolací
+ * Auto-cleanup po vypršení životnosti
+ * Particle-like behavior pro realistický efekt
+ */
+
 import * as Phaser from 'phaser';
 
 export class AsteroidShard extends Phaser.GameObjects.Sprite {
@@ -9,6 +25,9 @@ export class AsteroidShard extends Phaser.GameObjects.Sprite {
     private initialAlpha: number;
     private startTime: number;
 
+    // Identifikační vlastnost pro rozpoznání shardů
+    public readonly isAsteroidShard: boolean = true;
+
     constructor(scene: Phaser.Scene, x: number, y: number, texture: string) {
         super(scene, x, y, texture);
 
@@ -18,29 +37,30 @@ export class AsteroidShard extends Phaser.GameObjects.Sprite {
         // Enable physics for movement
         scene.physics.add.existing(this);
 
-        // Set random movement direction and speed
+        // Set random movement direction and speed - vyšší rozsah rychlostí
         const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-        const speed = Phaser.Math.FloatBetween(50, 150);
+        const speed = Phaser.Math.FloatBetween(80, 200); // Větší rozsah rychlostí
         this.velocityX = Math.cos(angle) * speed;
         this.velocityY = Math.sin(angle) * speed;
 
-        // Random rotation speed
-        this.rotationSpeed = Phaser.Math.FloatBetween(-0.1, 0.1);
+        // Random rotation speed - rychlejší rotace pro dramatičnost
+        this.rotationSpeed = Phaser.Math.FloatBetween(-0.15, 0.15);
 
-        // Lifespan properties
-        this.lifespan = 2000; // 2 seconds
-        this.fadeStartTime = 1000; // Start fading after 1 second
-        this.initialAlpha = 0.8;
+        // Lifespan properties - delší životnost, plynulejší fade out
+        this.lifespan = 3000; // 3 sekundy pro lepší vizuální efekt
+        this.fadeStartTime = 1800; // Začne se ztrácet po 60% času
+        this.initialAlpha = 0.9; // Vyšší počáteční průhlednost
         this.startTime = scene.time.now;
 
         // Set initial properties
         this.setAlpha(this.initialAlpha);
-        this.setScale(Phaser.Math.FloatBetween(0.3, 0.6)); // Smaller than original asteroid
-        this.setDepth(0.5); // Behind asteroids but in front of background
+        this.setScale(Phaser.Math.FloatBetween(0.2, 0.5)); // Ještě menší fragmenty
+        this.setDepth(0.5); // Za asteroidy ale před pozadím
 
-        // Start movement
+        // Start movement - vyšší rychlosti pro dramatičtější efekt
         const body = this.body as Phaser.Physics.Arcade.Body;
         body.setVelocity(this.velocityX, this.velocityY);
+        body.setCollideWorldBounds(false); // Fragmenty mohou létat pryč z obrazovky
 
         // Set up update loop
         scene.events.on('update', this.update, this);
