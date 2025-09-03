@@ -19,6 +19,7 @@ import { HealthComponent } from './health/HealthComponent';
 import { ColliderComponent } from './collider/ColliderComponent';
 import { EventBusComponent, CUSTOM_EVENTS } from './events/EventBusComponent';
 import { AsteroidShard } from './AsteroidShard';
+import { ShieldPowerUp } from './ShieldPowerUp';
 import { AsteroidHealthBarComponent } from './ui/AsteroidHealthBarComponent';
 
 export class Asteroid extends Phaser.GameObjects.Sprite {
@@ -224,6 +225,24 @@ export class Asteroid extends Phaser.GameObjects.Sprite {
             if (i === 0) { // Přehrát zvuk pouze jednou za roztříštění
                 this.eventBusComponent.emit('ASTEROID_SHATTER_SOUND');
             }
+        }
+
+        // Šance na drop shield power-upu (15% šance)
+        this.tryDropShieldPowerUp();
+    }
+
+    /**
+     * Zkusí spawnnout shield power-up s určitou pravděpodobností
+     */
+    private tryDropShieldPowerUp(): void {
+        const dropChance = Math.random();
+
+        // 15% šance na drop shield power-upu
+        if (dropChance < 0.15) {
+            console.log('Spawning shield power-up at:', this.x, this.y);
+
+            // Vytvořit ShieldPowerUp
+            new ShieldPowerUp(this.scene, this.x, this.y, this.eventBusComponent);
         }
     }
 

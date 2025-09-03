@@ -43,7 +43,7 @@ export class PreloadScene extends Phaser.Scene {
 
         // Load ship parts
         this.load.image('shipEngine', 'assets/sprites/game/Parts/engine1.png');
-        
+
         // Load engine thrust animation frames
         for (let i = 0; i < 20; i++) {
             const frameNumber = i.toString().padStart(2, '0');
@@ -81,6 +81,15 @@ export class PreloadScene extends Phaser.Scene {
 
         // Load effects
         this.load.image('explosion', 'assets/sprites/game/Effects/fire01.png');
+        this.load.image('shield1', 'assets/sprites/game/Effects/shield1.png');
+        this.load.image('shield2', 'assets/sprites/game/Effects/shield2.png');
+        this.load.image('shield3', 'assets/sprites/game/Effects/shield3.png');
+
+        // Load power-ups
+        this.load.image('powerupBlue_shield', 'assets/sprites/game/Power-ups/powerupBlue_shield.png');
+        this.load.image('powerupGreen_shield', 'assets/sprites/game/Power-ups/powerupGreen_shield.png');
+        this.load.image('powerupYellow_shield', 'assets/sprites/game/Power-ups/powerupYellow_shield.png');
+        this.load.image('powerupRed_shield', 'assets/sprites/game/Power-ups/powerupRed_shield.png');
 
         // Load audio
         console.log('PreloadScene: Loading audio files...');
@@ -183,7 +192,7 @@ export class PreloadScene extends Phaser.Scene {
     private createEngineAnimations(): void {
         // Vytvořit frames array pro fire animaci
         const fireFrames: Phaser.Types.Animations.AnimationFrame[] = [];
-        
+
         for (let i = 0; i < 20; i++) {
             const frameNumber = i.toString().padStart(2, '0');
             fireFrames.push({ key: `fire${frameNumber}`, frame: null });

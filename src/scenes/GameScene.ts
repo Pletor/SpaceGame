@@ -177,6 +177,47 @@ export class GameScene extends Phaser.Scene {
             undefined,
             this
         );
+
+        // Nastavit obecnou kolizní detekci pro power-upy
+        this.setupPowerUpCollisions();
+    }
+
+    /**
+     * Nastaví kolizní detekci pro power-upy
+     */
+    private setupPowerUpCollisions(): void {
+        // Periodická kontrola kolizí s power-upy
+        this.time.addEvent({
+            delay: 50, // Kontrola každých 50ms
+            callback: this.checkPowerUpCollisions,
+            callbackScope: this,
+            loop: true
+        });
+    }
+
+    /**
+     * Kontrola kolizí mezi hráčem a power-upy
+     */
+    private checkPowerUpCollisions(): void {
+        if (!this.player || !this.player.active) return;
+
+        // Najít všechny ShieldPowerUp objekty ve scéně
+        const powerUps = this.children.list.filter(child =>
+            child.constructor.name === 'ShieldPowerUp' && child.active
+        );
+
+        powerUps.forEach((powerUp: any) => {
+            // Kontrola vzdálenosti pro kolizi
+            const distance = Phaser.Math.Distance.Between(
+                this.player.x, this.player.y,
+                powerUp.x, powerUp.y
+            );
+
+            if (distance < 40) { // 40px poloměr kolize
+                console.log('Power-up collected!');
+                powerUp.collect();
+            }
+        });
     }
 
     /**
@@ -216,6 +257,14 @@ export class GameScene extends Phaser.Scene {
         // Ignorovat kolize s fragmenty asteroidů (shardy)
         if (asteroid.isAsteroidShard) {
             return; // Shardy nekolidují s hráčem
+        }
+
+        // Zkontrolovat dočasný štít
+        if (player.tempShieldComponent && player.tempShieldComponent.isShieldActive) {
+            console.log('Kolize blokována dočasným štítem!');
+            // Správně zničit asteroid bez poškození hráče
+            this.destroyAsteroidProperly(asteroid);
+            return; // Štít absorbnul zásah
         }
 
         // Správně zničit asteroid s vyčištěním health baru

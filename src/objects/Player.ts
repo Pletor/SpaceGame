@@ -20,6 +20,7 @@ import { VerticalMovementComponent } from '../components/movement/VerticalMoveme
 import { WeaponComponent } from '../components/weapons/WeaponComponent';
 import { HealthComponent } from '../components/health/HealthComponent';
 import { ColliderComponent } from '../components/collider/ColliderComponent';
+import { TemporaryShieldComponent } from '../components/TemporaryShieldComponent';
 import { EventBusComponent, CUSTOM_EVENTS } from '../components/events/EventBusComponent';
 import * as Config from '../config/GameConfig';
 
@@ -37,6 +38,7 @@ export class Player extends Phaser.GameObjects.Container {
     private playerSecondaryWeaponComponent!: WeaponComponent;
     private playerHealthComponent!: HealthComponent;
     private playerColliderComponent!: ColliderComponent;
+    private temporaryShieldComponent!: TemporaryShieldComponent;
     private eventBusComponent: EventBusComponent;
 
     // Systém sekundární zbraně
@@ -104,6 +106,10 @@ export class Player extends Phaser.GameObjects.Container {
 
     public get healthComponent(): HealthComponent {
         return this.playerHealthComponent;
+    }
+
+    public get tempShieldComponent(): TemporaryShieldComponent {
+        return this.temporaryShieldComponent;
     }
 
     public getSecondaryCooldown(): number {
@@ -182,6 +188,9 @@ export class Player extends Phaser.GameObjects.Container {
 
         // Komponenta kolizí
         this.playerColliderComponent = new ColliderComponent(this.playerHealthComponent, this.eventBusComponent);
+
+        // Komponenta dočasného štítu
+        this.temporaryShieldComponent = new TemporaryShieldComponent(this.scene, this, this.eventBusComponent);
 
         // Primární zbraňová komponenta
         this.playerWeaponComponent = new WeaponComponent(
@@ -302,9 +311,9 @@ export class Player extends Phaser.GameObjects.Container {
      */
     private updateEngineThrust(): void {
         // Zobrazit engine thrust pokud se loď pohybuje
-        const isMoving = this.keyboardInputComponent.upIsDown || 
-                        this.keyboardInputComponent.downIsDown || 
-                        this.keyboardInputComponent.leftIsDown || 
+        const isMoving = this.keyboardInputComponent.upIsDown ||
+                        this.keyboardInputComponent.downIsDown ||
+                        this.keyboardInputComponent.leftIsDown ||
                         this.keyboardInputComponent.rightIsDown;
 
         if (isMoving && !this.shipEngineThrusterSprite.visible) {
