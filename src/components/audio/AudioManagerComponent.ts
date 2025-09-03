@@ -1,3 +1,18 @@
+/**
+ * Audio Manager - centrální správa všech zvuků ve hře
+ *
+ * Funkce:
+ * - Spravuje hudbu na pozadí s možností zapnutí/vypnutí
+ * - Řídí všechny zvukové efekty (střelba, exploze, štíty)
+ * - Poskytuje centrální ovládání hlasitosti a ztlumení
+ * - Event-driven přehrávání zvuků na základě herních akcí
+ *
+ * Princip:
+ * Map-based úložiště zvukových efektů pro rychlý přístup
+ * Poslouchá herní eventy a automaticky přehrává odpovídající zvuky
+ * Fallback mechanismus pro start hudby při uživatelské interakci
+ */
+
 import * as Phaser from 'phaser';
 import { EventBusComponent, CUSTOM_EVENTS } from '../events/EventBusComponent';
 
@@ -16,28 +31,45 @@ export class AudioManagerComponent {
         this.setupEventListeners();
     }
 
+    /**
+     * Inicializuje všechny zvuky ve hře
+     */
     private initializeSounds(): void {
-        console.log('AudioManager: Initializing sounds...');
+        console.log('AudioManager: Inicializuji zvuky...');
 
-        // Initialize background music
+        // Inicializovat hudbu na pozadí
+        this.initializeBackgroundMusic();
+
+        // Inicializovat zvukové efekty
+        this.initializeSoundEffects();
+    }
+
+    /**
+     * Inicializuje hudbu na pozadí
+     */
+    private initializeBackgroundMusic(): void {
         if (this.scene.sound.get('bg')) {
             this.backgroundMusic = this.scene.sound.get('bg');
-            console.log('AudioManager: Background music "bg" found and loaded');
+            console.log('AudioManager: Hudba na pozadí "bg" nalezena a načtena');
         } else {
-            console.warn('AudioManager: Background music "bg" not found, trying to create it...');
+            console.warn('AudioManager: Hudba na pozadí "bg" nenalezena, pokouším se vytvořit...');
             try {
                 this.backgroundMusic = this.scene.sound.add('bg');
                 if (this.backgroundMusic) {
-                    console.log('AudioManager: Background music "bg" created successfully');
+                    console.log('AudioManager: Hudba na pozadí "bg" úspěšně vytvořena');
                 } else {
-                    console.error('AudioManager: Failed to create background music "bg"');
+                    console.error('AudioManager: Nepodařilo se vytvořit hudbu na pozadí "bg"');
                 }
             } catch (error) {
-                console.error('AudioManager: Error creating background music:', error);
+                console.error('AudioManager: Chyba při vytváření hudby na pozadí:', error);
             }
         }
+    }
 
-        // Initialize sound effects
+    /**
+     * Inicializuje všechny zvukové efekty
+     */
+    private initializeSoundEffects(): void {
         const soundKeys = [
             'shot1',
             'shot2',
@@ -49,29 +81,32 @@ export class AudioManagerComponent {
             'zap'
         ];
 
-        soundKeys.forEach(key => {
+        soundKeys.forEach((key: string) => {
             const sound = this.scene.sound.get(key);
             if (sound) {
                 this.soundEffects.set(key, sound);
-                console.log(`Sound "${key}" loaded successfully`);
+                console.log(`Zvuk "${key}" načten úspěšně`);
             } else {
-                console.warn(`Sound "${key}" not found, creating new one`);
-                // Try to create the sound if it doesn't exist
+                console.warn(`Zvuk "${key}" nenalezen, vytvářím nový`);
+                // Pokusit se vytvořit zvuk pokud neexistuje
                 try {
                     const newSound = this.scene.sound.add(key);
                     if (newSound) {
                         this.soundEffects.set(key, newSound);
-                        console.log(`Sound "${key}" created successfully`);
+                        console.log(`Zvuk "${key}" vytvořen úspěšně`);
                     }
                 } catch (error) {
-                    console.error(`Failed to create sound "${key}":`, error);
+                    console.error(`Nepodařilo se vytvořit zvuk "${key}":`, error);
                 }
             }
         });
     }
 
+    /**
+     * Nastaví event listenery pro herní události
+     */
     private setupEventListeners(): void {
-        // Listen for game events to play appropriate sounds
+        // Poslouchat herní události pro přehrání odpovídajících zvuků
         this.eventBusComponent.on(CUSTOM_EVENTS.SHIP_SHOOT, this.onPlayerShoot, this);
         this.eventBusComponent.on('SHIP_SHOOT_SECONDARY', this.onPlayerShootSecondary, this);
         this.eventBusComponent.on(CUSTOM_EVENTS.SHIP_HIT, this.onPlayerHit, this);
@@ -84,9 +119,12 @@ export class AudioManagerComponent {
         this.eventBusComponent.on(CUSTOM_EVENTS.GAME_OVER, this.onGameOver, this);
     }
 
+    /**
+     * Spustí hudbu na pozadí
+     */
     public startBackgroundMusic(): void {
-        console.log('AudioManager: Attempting to start background music...');
-        console.log('AudioManager: backgroundMusic exists:', !!this.backgroundMusic);
+        console.log('AudioManager: Pokouším se spustit hudbu na pozadí...');
+        console.log('AudioManager: backgroundMusic existuje:', !!this.backgroundMusic);
         console.log('AudioManager: isMuted:', this.isMuted);
 
         if (this.backgroundMusic && !this.isMuted) {

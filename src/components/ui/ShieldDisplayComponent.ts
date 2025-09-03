@@ -1,3 +1,19 @@
+/**
+ * Shield Display Component - zobrazuje a spravuje systém štítů hráče
+ *
+ * Funkce:
+ * - Vizualizuje aktuální stav štítů segmentovaným progress barem
+ * - Řídí regeneraci štítů s progresivním časováním
+ * - Zpracovává zásahy s debounce logikou
+ * - Poskytuje vizuální feedback během oprav
+ *
+ * Princip:
+ * Segmented shield system - každý štít je samostatný segment
+ * Progressive repair timing - delší doba opravy pro každý další segment
+ * Debounce protection - zamezuje rapid-fire hits
+ * Event-driven communication s audio a gameplay systémy
+ */
+
 import * as Phaser from 'phaser';
 import { EventBusComponent, CUSTOM_EVENTS } from '../events/EventBusComponent';
 
@@ -7,24 +23,45 @@ export class ShieldDisplayComponent {
     private shieldText: Phaser.GameObjects.Text;
     private shieldBarGraphics: Phaser.GameObjects.Graphics;
     private maxShield: number = 3;
-    private currentShield: number = 3; // Start with full shield
+    private currentShield: number = 3; // Začít s plnými štíty
     private isRegenerating: boolean = false;
-    private regenerationProgress: number = 0; // 0-100 for loading progress
-    private lastHitTime: number = 0; // Track when last hit occurred
-    private lastProcessedHitTime: number = 0; // Track when we last processed a hit to prevent rapid-fire
-    private hitDebounceTime: number = 100; // 100ms debounce between hits
-    private repairStartDelay: number = 30000; // 30 seconds delay before repair starts
-    private repairSegmentTimes: number[] = [10000, 20000, 30000]; // Progressive repair times: 10s, 20s, 30s
-    private currentRepairSegmentIndex: number = 0; // Track which segment is being repaired
-    private shieldBarWidth: number = 240; // Match cooldown bar width
-    private shieldBarHeight: number = 25; // Match cooldown bar height
+    private regenerationProgress: number = 0; // 0-100 pro loading progress
+    private lastHitTime: number = 0; // Sledovat kdy došlo k poslednímu zásahu
+    private lastProcessedHitTime: number = 0; // Sledovat kdy jsme naposledy zpracovali zásah
+    private hitDebounceTime: number = 100; // 100ms debounce mezi zásahy
+    private repairStartDelay: number = 30000; // 30 sekund delay před začátkem opravy
+    private repairSegmentTimes: number[] = [10000, 20000, 30000]; // Progresivní časy oprav: 10s, 20s, 30s
+    private currentRepairSegmentIndex: number = 0; // Sledovat který segment se opravuje
+    private shieldBarWidth: number = 240; // Shodovat s šířkou cooldown baru
+    private shieldBarHeight: number = 25; // Shodovat s výškou cooldown baru
 
     constructor(scene: Phaser.Scene, x: number, y: number, eventBusComponent: EventBusComponent) {
         this.scene = scene;
         this.eventBusComponent = eventBusComponent;
 
-        // Create luxury shield label (left aligned with more spacing from bar)
-        this.shieldText = scene.add.text(x - this.shieldBarWidth/2, y - 40, 'SHIELD', {
+        // Vytvořit luxusní štítový label
+        this.createShieldLabel(x, y);
+
+        // Vytvořit prémiový štítový bar grafiky
+        this.createShieldBarGraphics(x, y);
+
+        // Nastavit hloubku pro renderovací pořadí
+        this.setupDepths();
+
+        // Nastavit event listenery
+        this.setupEventListeners();
+
+        // Spustit periodickou kontrolu oprav (každých 5 sekund)
+        this.startPeriodicRepairCheck();
+
+        this.updateDisplay();
+    }
+
+    /**
+     * Vytvoří textový label pro štíty
+     */
+    private createShieldLabel(x: number, y: number): void {
+        this.shieldText = this.scene.add.text(x - this.shieldBarWidth/2, y - 40, 'SHIELD', {
             fontSize: '20px',
             color: '#00ffff',
             fontFamily: 'Arial Black',
@@ -32,84 +69,111 @@ export class ShieldDisplayComponent {
             stroke: '#000000',
             strokeThickness: 2
         }).setOrigin(0, 0);
+    }
 
-        // Create premium shield bar graphics
-        this.shieldBarGraphics = scene.add.graphics();
+    /**
+     * Vytvoří grafické objekty pro štítový bar
+     */
+    private createShieldBarGraphics(x: number, y: number): void {
+        this.shieldBarGraphics = this.scene.add.graphics();
         this.shieldBarGraphics.setPosition(x - this.shieldBarWidth/2, y - this.shieldBarHeight/2);
+    }
 
-        // Set depth for rendering order
+    /**
+     * Nastaví hloubky pro správné renderování
+     */
+    private setupDepths(): void {
         this.shieldText.setDepth(100);
         this.shieldBarGraphics.setDepth(101);
+    }
 
-        // Listen for shield events
+    /**
+     * Nastaví všechny event listenery
+     */
+    private setupEventListeners(): void {
         this.eventBusComponent.on('SHIELD_HIT', this.onShieldHit, this);
         this.eventBusComponent.on('SHIELD_DEPLETED', this.onShieldDepleted, this);
         this.eventBusComponent.on(CUSTOM_EVENTS.PLAYER_SPAWN, this.onPlayerSpawn, this);
+    }
 
-        // Start periodic repair check (every 5 seconds)
+    /**
+     * Spustí periodickou kontrolu oprav
+     */
+    private startPeriodicRepairCheck(): void {
         this.scene.time.addEvent({
             delay: 5000,
             callback: this.periodicRepairCheck,
             callbackScope: this,
             loop: true
         });
-
-        this.updateDisplay();
     }
 
+    /**
+     * Periodická kontrola zda začít opravy
+     */
     private periodicRepairCheck(): void {
-        // Check if we should start repair process
+        // Zkontrolovat zda začít proces oprav
         if (this.currentShield < this.maxShield &&
             !this.isRegenerating &&
             this.lastHitTime > 0) {
 
             const timeSinceLastHit = this.scene.time.now - this.lastHitTime;
             if (timeSinceLastHit >= this.repairStartDelay) {
-                console.log('Starting automatic shield repair after survival period...');
+                console.log('Spouštím automatickou opravu štítů po období přežití...');
                 this.startRepairProcess();
             }
         }
     }
 
+    /**
+     * Zpracuje zásah štítu
+     */
     private onShieldHit(): void {
         const currentTime = this.scene.time.now;
 
-        // Debounce rapid hits - prevent multiple hits in short succession
+        // Debounce rychlé zásahy - zamezit multiple hits v krátkém sledu
         if (currentTime - this.lastProcessedHitTime < this.hitDebounceTime) {
-            console.log('Hit ignored due to debounce');
+            console.log('Zásah ignorován kvůli debounce');
             return;
         }
 
-        console.log(`onShieldHit called - current shield before: ${this.currentShield}`);
+        console.log(`onShieldHit volán - současný štít před: ${this.currentShield}`);
 
         if (this.currentShield > 0) {
             this.currentShield--;
             this.lastHitTime = currentTime;
             this.lastProcessedHitTime = currentTime;
 
-            console.log(`Shield decreased to: ${this.currentShield}`);
+            console.log(`Štít snížen na: ${this.currentShield}`);
             this.updateDisplay();
 
-            // Play shield down sound
+            // Přehrát zvuk poškození štítu
             this.eventBusComponent.emit('SHIELD_DOWN_SOUND');
 
-            // Stop any ongoing regeneration
-            if (this.isRegenerating) {
-                this.isRegenerating = false;
-                this.regenerationProgress = 0;
-                this.scene.tweens.killTweensOf(this);
-            }
+            // Zastavit jakoukoliv probíhající regeneraci
+            this.stopRegenerationIfActive();
 
             if (this.currentShield <= 0) {
-                // Shield completely depleted - player dies
-                console.log('Shield depleted - emitting SHIELD_DEPLETED');
+                // Štít kompletně vyčerpán - hráč umírá
+                console.log('Štít vyčerpán - emituju SHIELD_DEPLETED');
                 this.eventBusComponent.emit('SHIELD_DEPLETED');
             }
 
-            // Start countdown for repair (30 seconds after hit)
+            // Spustit odpočet pro opravu (30 sekund po zásahu)
             this.scheduleRepairCheck();
         } else {
-            console.log('Shield already at 0, ignoring hit');
+            console.log('Štít už je na 0, ignoruju zásah');
+        }
+    }
+
+    /**
+     * Zastaví regeneraci pokud je aktivní
+     */
+    private stopRegenerationIfActive(): void {
+        if (this.isRegenerating) {
+            this.isRegenerating = false;
+            this.regenerationProgress = 0;
+            this.scene.tweens.killTweensOf(this);
         }
     }
 

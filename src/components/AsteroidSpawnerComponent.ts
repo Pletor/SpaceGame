@@ -1,3 +1,18 @@
+/**
+ * Asteroid Spawner Component - spravuje spawn a životní cyklus asteroidů
+ *
+ * Funkce:
+ * - Pravidelně spawnuje asteroidy různých velikostí a vlastností
+ * - Řídí časování spawnu a obtížnost hry
+ * - Spravuje skupinu asteroidů pro kolizní detekci
+ * - Automaticky čistí zničené asteroidy z paměti
+ *
+ * Princip:
+ * Timer-based spawning s konfigurovatelnými intervaly
+ * Variety asteroidů s různými vlastnostmi (health, rychlost, skóre)
+ * Group management pro efektivní správu objektů
+ */
+
 import * as Phaser from 'phaser';
 import { Asteroid } from './Asteroid';
 import { EventBusComponent, CUSTOM_EVENTS } from './events/EventBusComponent';
@@ -7,26 +22,35 @@ export class AsteroidSpawnerComponent {
     private eventBusComponent: EventBusComponent;
     private asteroids: Phaser.GameObjects.Group;
     private spawnTimer: number = 0;
-    private spawnInterval: number = 2000; // Spawn every 2 seconds
+    private spawnInterval: number = 2000; // Spawn každé 2 sekundy
     private isActive: boolean = false;
 
     constructor(scene: Phaser.Scene, eventBusComponent: EventBusComponent) {
         this.scene = scene;
         this.eventBusComponent = eventBusComponent;
 
-        // Create group for asteroids
+        // Vytvořit skupinu pro asteroidy
         this.asteroids = scene.add.group();
     }
 
+    /**
+     * Spustí spawning asteroidů
+     */
     public start(): void {
         this.isActive = true;
         this.spawnTimer = 0;
     }
 
+    /**
+     * Zastaví spawning asteroidů
+     */
     public stop(): void {
         this.isActive = false;
     }
 
+    /**
+     * Hlavní update loop - řídí časování spawnu
+     */
     public update(deltaTime: number): void {
         if (!this.isActive) return;
 
@@ -38,13 +62,36 @@ export class AsteroidSpawnerComponent {
         }
     }
 
+    /**
+     * Vytvoří nový asteroid s náhodnými vlastnostmi
+     */
     private spawnAsteroid(): void {
-        // Random position along top of screen
+        // Náhodná pozice podél horní části obrazovky
         const x = Phaser.Math.Between(50, this.scene.scale.width - 50);
-        const y = -50; // Start above screen
+        const y = -50; // Začít nad obrazovkou
 
-        // Choose random asteroid size and properties
-        const asteroidTypes = [
+        // Definice typů asteroidů s různými vlastnostmi
+        const asteroidTypes = this.getAsteroidTypes();
+        const randomType = Phaser.Utils.Array.GetRandom(asteroidTypes);
+        const randomTexture = Phaser.Utils.Array.GetRandom(randomType.textures);
+
+        // Vytvořit asteroid s konkrétními vlastnostmi
+        const asteroid = new Asteroid(this.scene, x, y, this.eventBusComponent, randomType.health, randomType.speed, randomType.score);
+        asteroid.setTexture(randomTexture);
+        asteroid.setScale(randomType.scale);
+
+        // Přidat do skupiny
+        this.asteroids.add(asteroid);
+
+        // Vyčistit zničené asteroidy
+        this.cleanupDestroyedAsteroids();
+    }
+
+    /**
+     * Definuje typy asteroidů s jejich vlastnostmi
+     */
+    private getAsteroidTypes(): Array<{textures: string[], scale: number, health: number, speed: number, score: number}> {
+        return [
             {
                 textures: ['meteor1', 'meteor2', 'meteor3', 'meteor4'],
                 scale: 1.0,
@@ -67,26 +114,15 @@ export class AsteroidSpawnerComponent {
                 score: 200
             }
         ];
-
-        const randomType = Phaser.Utils.Array.GetRandom(asteroidTypes);
-        const randomTexture = Phaser.Utils.Array.GetRandom(randomType.textures);
-
-        // Create asteroid with specific properties
-        const asteroid = new Asteroid(this.scene, x, y, this.eventBusComponent, randomType.health, randomType.speed, randomType.score);
-        asteroid.setTexture(randomTexture);
-        asteroid.setScale(randomType.scale);
-
-        // Add to group
-        this.asteroids.add(asteroid);
-
-        // Clean up destroyed asteroids
-        this.cleanupDestroyedAsteroids();
     }
 
+    /**
+     * Vyčistí neaktivní asteroidy ze skupiny
+     */
     private cleanupDestroyedAsteroids(): void {
         if (!this.asteroids || !this.asteroids.children) return;
 
-        // Use getChildren() method instead of entries
+        // Použít getChildren() metodu místo entries
         const children = this.asteroids.getChildren() as Asteroid[];
         if (!children || children.length === 0) return;
 
@@ -98,10 +134,16 @@ export class AsteroidSpawnerComponent {
         }
     }
 
+    /**
+     * Vrací skupinu asteroidů pro kolizní detekci
+     */
     public get asteroidGroup(): Phaser.GameObjects.Group {
         return this.asteroids;
     }
 
+    /**
+     * Vyčistí všechny asteroidy při zničení komponenty
+     */
     public destroy(): void {
         this.asteroids.destroy(true);
     }

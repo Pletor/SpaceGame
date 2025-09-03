@@ -1,3 +1,18 @@
+/**
+ * Hlavní herní scéna - řídí celý průběh hry
+ *
+ * Funkce:
+ * - Orchestruje všechny herní systémy (hráč, asteroidy, UI, audio)
+ * - Řeší kolize mezi objekty
+ * - Zobrazuje herní UI (skóre, životy, munice, štíty)
+ * - Spravuje restart hry a game over stav
+ *
+ * Princip:
+ * Event-driven architektura - komponenty komunikují přes EventBusComponent
+ * Všechny UI prvky jsou umístěny strategicky pro lepší UX
+ * Kolize jsou řešeny centrálně v této scéně
+ */
+
 import * as Phaser from 'phaser';
 import { Player } from '../objects/Player';
 import { EventBusComponent, CUSTOM_EVENTS } from '../components/events/EventBusComponent';
@@ -9,90 +24,82 @@ import { AmmoDisplayComponent } from '../components/ui/AmmoDisplayComponent';
 import { AudioControlMenu } from '../components/ui/AudioControlMenu';
 import { ShieldDisplayComponent } from '../components/ui/ShieldDisplayComponent';
 import { AudioManagerComponent } from '../components/audio/AudioManagerComponent';
-import * as Config from '../config/GameConfig';
 
 export class GameScene extends Phaser.Scene {
+    // Hlavní herní objekty
     private player!: Player;
     private eventBusComponent!: EventBusComponent;
     private asteroidSpawner!: AsteroidSpawnerComponent;
+
+    // UI komponenty
     private scoreComponent!: ScoreComponent;
     private livesComponent!: LivesComponent;
     private cooldownBar!: CooldownBarComponent;
     private ammoDisplay!: AmmoDisplayComponent;
     private shieldDisplay!: ShieldDisplayComponent;
-    private audioManager!: AudioManagerComponent;
     private audioControlMenu!: AudioControlMenu;
+
+    // Audio systém
+    private audioManager!: AudioManagerComponent;
 
     constructor() {
         super({ key: 'GameScene' });
     }
 
     create() {
-        console.log('Game scene loaded');
+        console.log('Herní scéna načtena');
 
-        // Clean up any existing event listeners
+        // Vyčistit existující event listenery
         if (this.eventBusComponent) {
             this.eventBusComponent.removeAllListeners();
         }
 
-        // Set world bounds to match screen size
+        // Nastavit hranice světa podle velikosti obrazovky
         this.physics.world.setBounds(0, 0, this.scale.width, this.scale.height);
 
-        // Create static background
+        // Vytvořit statické pozadí
         this.createBackground();
 
-        // Create event bus component for communication between components
+        // Vytvořit event bus pro komunikaci mezi komponentami
         this.eventBusComponent = new EventBusComponent();
 
-        // Create player at initial position (bottom center)
+        // Vytvořit hráče na počáteční pozici (střed dole)
         this.player = new Player(this, this.eventBusComponent);
 
-        // Create asteroid spawner
+        // Vytvořit spawner asteroidů
         this.asteroidSpawner = new AsteroidSpawnerComponent(this, this.eventBusComponent);
         this.asteroidSpawner.start();
 
-        // Left side UI layout - score, lives, and ammo displays
-        this.scoreComponent = new ScoreComponent(this, 40, 40, this.eventBusComponent);
-        this.livesComponent = new LivesComponent(this, 40, 80, this.eventBusComponent);
-        this.ammoDisplay = new AmmoDisplayComponent(this, 40, 130);
+        // Inicializovat UI komponenty
+        this.initializeUIComponents();
 
-        // Right side UI layout - moved closer to edge and down for better visibility
-        const rightX = this.scale.width - 260; // Closer to right edge
-        this.cooldownBar = new CooldownBarComponent(this, rightX, 60, 240, 30, 10000); // Moved down
-        this.shieldDisplay = new ShieldDisplayComponent(this, rightX, 150, this.eventBusComponent); // Moved down
-
-                // Create audio manager and start background music
+        // Vytvořit audio manager a spustit hudbu
         this.audioManager = new AudioManagerComponent(this, this.eventBusComponent);
-
-        // Start background music with user interaction fallback
         this.startBackgroundMusicWithFallback();
 
-        // Create audio control menu (top right corner)
+        // Vytvořit ovládání audia (pravý horní roh)
         this.audioControlMenu = new AudioControlMenu(this, this.audioManager, this.scale.width - 60, 220);
 
-        // Set up collision detection
+        // Nastavit detekci kolizí
         this.setupCollisions();
 
-        // Listen for player destroyed event to respawn player
-        this.eventBusComponent.on(CUSTOM_EVENTS.PLAYER_DESTROYED, this.handlePlayerDestroyed, this);
+        // Nastavit event listenery
+        this.setupEventListeners();
 
-        // Listen for game over event
-        this.eventBusComponent.on(CUSTOM_EVENTS.GAME_OVER, this.handleGameOver, this);
-
-        // Spawn player initially
+        // Spawnout hráče na začátku
         this.eventBusComponent.emit(CUSTOM_EVENTS.PLAYER_SPAWN);
     }
 
     update(time: number, deltaTime: number) {
-        // Update asteroid spawner
+        // Aktualizovat spawner asteroidů
         this.asteroidSpawner.update(deltaTime);
 
-        // Update cooldown bar
+        // Aktualizovat cooldown bar
         if (this.player && this.cooldownBar) {
             this.cooldownBar.updateCooldown(this.player.getSecondaryCooldown());
         }
 
-        // Update ammo display
+        // Aktualizovat displej munice
         if (this.player && this.ammoDisplay) {
             this.ammoDisplay.updatePrimaryAmmo(
                 this.player.weaponComponent.getCurrentAmmo(),
@@ -105,15 +112,46 @@ export class GameScene extends Phaser.Scene {
         }
     }
 
-    private createBackground() {
-        // Create main background - use the black space background
+    /**
+     * Inicializuje všechny UI komponenty na správných pozicích
+     */
+    private initializeUIComponents(): void {
+        // Levá strana UI - skóre, životy a munice
+        this.scoreComponent = new ScoreComponent(this, 40, 40, this.eventBusComponent);
+        this.livesComponent = new LivesComponent(this, 40, 80, this.eventBusComponent);
+        this.ammoDisplay = new AmmoDisplayComponent(this, 40, 130);
+
+        // Pravá strana UI - blíže k okraji pro lepší viditelnost
+        const rightX = this.scale.width - 260;
+        this.cooldownBar = new CooldownBarComponent(this, rightX, 60, 240, 30, 10000);
+        this.shieldDisplay = new ShieldDisplayComponent(this, rightX, 150, this.eventBusComponent);
+    }
+
+    /**
+     * Nastaví event listenery pro herní události
+     */
+    private setupEventListeners(): void {
+        // Poslouchat událost zničení hráče
+        this.eventBusComponent.on(CUSTOM_EVENTS.PLAYER_DESTROYED, this.handlePlayerDestroyed, this);
+
+        // Poslouchat událost game over
+        this.eventBusComponent.on(CUSTOM_EVENTS.GAME_OVER, this.handleGameOver, this);
+    }
+
+    /**
+     * Vytvoří jednoduché černé pozadí
+     */
+    private createBackground(): void {
         this.add.image(0, 0, 'black')
             .setOrigin(0, 0)
             .setDisplaySize(this.scale.width, this.scale.height);
     }
 
-    private setupCollisions() {
-        // Player vs Asteroids collision - when player hits asteroid, respawn player at initial position
+    /**
+     * Nastaví všechny typy kolizí ve hře
+     */
+    private setupCollisions(): void {
+        // Kolize hráč vs asteroidy - při kolizi se hráč respawnuje
         this.physics.add.overlap(
             this.player,
             this.asteroidSpawner.asteroidGroup,
@@ -122,7 +160,7 @@ export class GameScene extends Phaser.Scene {
             this
         );
 
-        // Player bullets vs Asteroids collision - asteroids can be destroyed by shooting
+        // Kolize střely hráče vs asteroidy - asteroidy mohou být zničeny střelbou
         this.physics.add.overlap(
             this.asteroidSpawner.asteroidGroup,
             this.player.weaponGameObjectGroup,
@@ -131,7 +169,7 @@ export class GameScene extends Phaser.Scene {
             this
         );
 
-        // Player secondary bullets vs Asteroids collision
+        // Kolize sekundární střely hráče vs asteroidy
         this.physics.add.overlap(
             this.asteroidSpawner.asteroidGroup,
             this.player.secondaryWeaponGameObjectGroup,
@@ -141,36 +179,99 @@ export class GameScene extends Phaser.Scene {
         );
     }
 
+    /**
+     * Zpracovává událost zničení hráče
+     */
     private handlePlayerDestroyed(): void {
-        console.log('Player destroyed - lives system will handle respawn');
-        // LivesComponent now handles respawn logic based on remaining lives
+        console.log('Hráč zničen - systém životů řeší respawn');
+        // LivesComponent nyní řeší logiku respawnu na základě zbývajících životů
     }
 
+    /**
+     * Spustí hudbu na pozadí s fallbackem pro uživatelskou interakci
+     */
     private startBackgroundMusicWithFallback(): void {
-        // Try to start music immediately
+        // Pokusit se spustit hudbu okamžitě
         this.audioManager.startBackgroundMusic();
 
-        // Set up fallback for user interaction
+        // Nastavit fallback pro uživatelskou interakci
         const startMusicOnInteraction = () => {
             this.audioManager.startBackgroundMusic();
-            // Remove listeners after first successful start
+            // Odstranit listenery po prvním úspěšném spuštění
             this.input.off('pointerdown', startMusicOnInteraction);
             this.input.keyboard?.off('keydown', startMusicOnInteraction);
         };
 
-        // Listen for any user interaction to start music
+        // Poslouchat jakoukoliv uživatelskou interakci pro spuštění hudby
         this.input.once('pointerdown', startMusicOnInteraction);
         this.input.keyboard?.once('keydown', startMusicOnInteraction);
     }
 
-    private handlePlayerAsteroidCollision(player: any, asteroid: any) {
+    /**
+     * Zpracovává kolizi hráče s asteroidem
+     */
+    private handlePlayerAsteroidCollision(player: any, asteroid: any): void {
         if (!player.active || !asteroid.active) return;
 
-        // Properly destroy asteroid with health bar cleanup
+        // Správně zničit asteroid s vyčištěním health baru
+        this.destroyAsteroidProperly(asteroid);
+
+        // Hráč kolliduje s asteroidem - hráč dostane zásah a respawnuje se
+        // ColliderComponent zpracuje emisi SHIP_HIT eventu
+        if (player.colliderComponent) {
+            player.colliderComponent.collideWithEnemyShip();
+        }
+    }
+
+    /**
+     * Zpracovává kolizi asteroidu s primární střelou
+     */
+    private handleAsteroidProjectileCollision(asteroid: any, projectile: any): void {
+        if (!asteroid.active || !projectile.active) return;
+
+        // Zasáhnout asteroid primární zbraní (1 damage)
+        if (asteroid.takeDamage) {
+            asteroid.takeDamage();
+        }
+
+        // Zničit střelu
+        if (this.player && this.player.weaponComponent) {
+            this.player.weaponComponent.destroyBullet(projectile);
+        }
+
+        // Zkontrolovat, zda je asteroid zničen
+        this.checkAsteroidDestruction(asteroid, 100);
+    }
+
+    /**
+     * Zpracovává kolizi asteroidu se sekundární střelou
+     */
+    private handleAsteroidSecondaryProjectileCollision(asteroid: any, projectile: any): void {
+        if (!asteroid.active || !projectile.active) return;
+
+        // Zasáhnout asteroid sekundární zbraní (2 damage)
+        if (asteroid.takeDamage) {
+            asteroid.takeDamage();
+            asteroid.takeDamage(); // Druhý zásah pro dvojnásobné poškození
+        }
+
+        // Zničit střelu
+        if (this.player && this.player.secondaryWeaponComponent) {
+            this.player.secondaryWeaponComponent.destroyBullet(projectile);
+        }
+
+        // Zkontrolovat, zda je asteroid zničen
+        this.checkAsteroidDestruction(asteroid, 200);
+    }
+
+    /**
+     * Správně zničí asteroid s vyčištěním všech komponent
+     */
+    private destroyAsteroidProperly(asteroid: any): void {
         if (asteroid.destroyAsteroid) {
             asteroid.destroyAsteroid();
         } else {
-            // Fallback for other asteroid types
+            // Fallback pro jiné typy asteroidů
             if (asteroid.healthBarComponent) {
                 asteroid.healthBarComponent.destroy();
                 asteroid.healthBarComponent = undefined;
@@ -178,102 +279,37 @@ export class GameScene extends Phaser.Scene {
             asteroid.setActive(false);
             asteroid.setVisible(false);
         }
-
-        // Player collides with asteroid - player gets hit and respawns
-        // The ColliderComponent will handle the SHIP_HIT event emission
-        if (player.colliderComponent) {
-            player.colliderComponent.collideWithEnemyShip();
-        }
     }
 
-    private handleAsteroidProjectileCollision(asteroid: any, projectile: any) {
-        if (!asteroid.active || !projectile.active) return;
-
-        // Hit the asteroid with primary weapon (1 damage)
-        if (asteroid.takeDamage) {
-            asteroid.takeDamage();
-        }
-
-        // Destroy the bullet
-        if (this.player && this.player.weaponComponent) {
-            this.player.weaponComponent.destroyBullet(projectile);
-        }
-
-        // Check if asteroid is destroyed
+    /**
+     * Zkontroluje, zda je asteroid zničen a zpracuje následky
+     */
+    private checkAsteroidDestruction(asteroid: any, scoreValue: number): void {
         if (asteroid.healthComponent && asteroid.healthComponent.isDeadState) {
-            // Store score value before destroying
-            const scoreValue = asteroid.getScoreValue ? asteroid.getScoreValue() : 100;
+            // Uložit skóre před zničením
+            const actualScoreValue = asteroid.getScoreValue ? asteroid.getScoreValue() : scoreValue;
 
-            // Properly destroy asteroid with health bar cleanup
-            if (asteroid.destroyAsteroid) {
-                asteroid.destroyAsteroid();
-            } else {
-                asteroid.setActive(false);
-                asteroid.setVisible(false);
-            }
+            // Správně zničit asteroid s vyčištěním health baru
+            this.destroyAsteroidProperly(asteroid);
 
-            // Play asteroid destruction sound
+            // Přehrát zvuk zničení asteroidu
             this.eventBusComponent.emit(CUSTOM_EVENTS.ENEMY_DESTROYED, asteroid);
 
-            // Add score for destroying asteroid
-            this.eventBusComponent.emit(CUSTOM_EVENTS.SCORE_CHANGE, scoreValue);
+            // Přidat skóre za zničení asteroidu
+            this.eventBusComponent.emit(CUSTOM_EVENTS.SCORE_CHANGE, actualScoreValue);
         }
     }
 
-    private handleAsteroidSecondaryProjectileCollision(asteroid: any, projectile: any) {
-        if (!asteroid.active || !projectile.active) return;
-
-        // Hit the asteroid with secondary weapon (2 damage)
-        if (asteroid.takeDamage) {
-            asteroid.takeDamage();
-            asteroid.takeDamage(); // Second hit for double damage
-        }
-
-        // Destroy the bullet
-        if (this.player && this.player.secondaryWeaponComponent) {
-            this.player.secondaryWeaponComponent.destroyBullet(projectile);
-        }
-
-        // Check if asteroid is destroyed
-        if (asteroid.healthComponent && asteroid.healthComponent.isDeadState) {
-            // Store score value before destroying
-            const scoreValue = asteroid.getScoreValue ? asteroid.getScoreValue() : 200;
-
-            // Properly destroy asteroid with health bar cleanup
-            if (asteroid.destroyAsteroid) {
-                asteroid.destroyAsteroid();
-            } else {
-                asteroid.setActive(false);
-                asteroid.setVisible(false);
-            }
-
-            // Play asteroid destruction sound
-            this.eventBusComponent.emit(CUSTOM_EVENTS.ENEMY_DESTROYED, asteroid);
-
-            // Add score for destroying asteroid
-            this.eventBusComponent.emit(CUSTOM_EVENTS.SCORE_CHANGE, scoreValue);
-        }
-    }
-
+    /**
+     * Zpracovává stav Game Over
+     */
     private handleGameOver(): void {
-        console.log('Game Over triggered');
+        console.log('Game Over spuštěn');
 
-        // Stop all game activity
-        if (this.asteroidSpawner) {
-            this.asteroidSpawner.stop();
-        }
+        // Zastavit všechnu herní aktivitu
+        this.stopGameActivity();
 
-        // Stop player updates
-        if (this.player) {
-            this.player.setActive(false);
-        }
-
-        // Stop background music
-        if (this.audioManager) {
-            this.audioManager.stopBackgroundMusic();
-        }
-
-        // Create semi-transparent overlay
+        // Vytvořit poloprůhledný overlay
         const overlay = this.add.rectangle(
             this.scale.width / 2,
             this.scale.height / 2,
@@ -284,7 +320,35 @@ export class GameScene extends Phaser.Scene {
         );
         overlay.setDepth(1000);
 
-        // Game Over title
+        // Zobrazit Game Over UI
+        this.displayGameOverUI();
+
+        // Nastavit restart funkcionalitu
+        this.setupRestartFunctionality();
+    }
+
+    /**
+     * Zastaví všechnu herní aktivitu
+     */
+    private stopGameActivity(): void {
+        if (this.asteroidSpawner) {
+            this.asteroidSpawner.stop();
+        }
+
+        if (this.player) {
+            this.player.setActive(false);
+        }
+
+        if (this.audioManager) {
+            this.audioManager.stopBackgroundMusic();
+        }
+    }
+
+    /**
+     * Zobrazí Game Over UI elementy
+     */
+    private displayGameOverUI(): void {
+        // Game Over nadpis
         const gameOverText = this.add.text(
             this.scale.width / 2,
             this.scale.height / 2 - 100,
@@ -299,12 +363,12 @@ export class GameScene extends Phaser.Scene {
         ).setOrigin(0.5);
         gameOverText.setDepth(1001);
 
-        // Final score
+        // Finální skóre
         const finalScore = this.scoreComponent ? this.scoreComponent.getScore() : 0;
         const scoreText = this.add.text(
             this.scale.width / 2,
             this.scale.height / 2 - 20,
-            `Final Score: ${finalScore}`,
+            `Finální skóre: ${finalScore}`,
             {
                 fontSize: '32px',
                 color: '#ffffff',
@@ -313,11 +377,11 @@ export class GameScene extends Phaser.Scene {
         ).setOrigin(0.5);
         scoreText.setDepth(1001);
 
-        // Restart instructions
+        // Instrukce pro restart
         const restartText = this.add.text(
             this.scale.width / 2,
             this.scale.height / 2 + 40,
-            'Press R to Restart',
+            'Stiskni R pro restart',
             {
                 fontSize: '24px',
                 color: '#00ff00',
@@ -325,12 +389,16 @@ export class GameScene extends Phaser.Scene {
             }
         ).setOrigin(0.5);
         restartText.setDepth(1001);
+    }
 
-        // Listen for restart key
+    /**
+     * Nastaví funkcionalitu restartu hry
+     */
+    private setupRestartFunctionality(): void {
         const restartKey = this.input.keyboard?.addKey('R');
         if (restartKey) {
             restartKey.on('down', () => {
-                console.log('Restarting game...');
+                console.log('Restartování hry...');
                 this.scene.restart();
             });
         }

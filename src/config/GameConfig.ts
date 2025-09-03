@@ -1,14 +1,28 @@
-// Player configuration
+/**
+ * Globální konfigurace hry - obsahuje všechny důležité herní parametry
+ *
+ * Funkce:
+ * - Centralizuje všechny herní konstanty na jednom místě
+ * - Umožňuje snadné vyladění game balance
+ * - Odděluje konfiguraci od logiky hry
+ *
+ * Princip:
+ * Exportované konstanty se používají v celé aplikaci
+ * Změny zde ovlivní chování celé hry
+ * Rozděleno do kategorií podle typu objektu
+ */
+
+// Konfigurace hráče
 export const PLAYER_HEALTH = 3;
 export const PLAYER_MOVEMENT_HORIZONTAL_VELOCITY = 500;
-export const PLAYER_BULLET_MAX_COUNT = 25; // Increased from 10 to 25
+export const PLAYER_BULLET_MAX_COUNT = 25; // Zvýšeno z 10 na 25
 export const PLAYER_BULLET_INTERVAL = 300;
 export const PLAYER_BULLET_SPEED = 300;
 export const PLAYER_BULLET_LIFESPAN = 3000;
-export const PLAYER_SECONDARY_BULLET_MAX_COUNT = 10; // Secondary weapon ammo
+export const PLAYER_SECONDARY_BULLET_MAX_COUNT = 10; // Munice sekundární zbraně
 export const PLAYER_LIVES = 3;
 
-// Enemy configuration
+// Konfigurace nepřátel - Scout
 export const ENEMY_SCOUT_HEALTH = 2;
 export const ENEMY_SCOUT_MOVEMENT_VERTICAL_VELOCITY = 100;
 export const ENEMY_SCOUT_MOVEMENT_HORIZONTAL_VELOCITY = 80;
@@ -17,6 +31,7 @@ export const ENEMY_SCOUT_SCORE = 100;
 export const ENEMY_SCOUT_GROUP_SPAWN_INTERVAL = 5000;
 export const ENEMY_SCOUT_GROUP_SPAWN_START = 1000;
 
+// Konfigurace nepřátel - Fighter
 export const ENEMY_FIGHTER_HEALTH = 1;
 export const ENEMY_FIGHTER_MOVEMENT_VERTICAL_VELOCITY = 120;
 export const ENEMY_FIGHTER_SCORE = 200;
@@ -27,7 +42,7 @@ export const ENEMY_FIGHTER_BULLET_INTERVAL = 800;
 export const ENEMY_FIGHTER_BULLET_SPEED = -200;
 export const ENEMY_FIGHTER_BULLET_LIFESPAN = 3000;
 
-// Component configuration
+// Konfigurace komponent pohybu
 export const COMPONENT_MOVEMENT_HORIZONTAL_DRAG = 0.1;
 export const COMPONENT_MOVEMENT_HORIZONTAL_MAX_VELOCITY = 500;
 export const COMPONENT_MOVEMENT_VERTICAL_DRAG = 0.1;
