@@ -43,7 +43,12 @@ export class PreloadScene extends Phaser.Scene {
 
         // Load ship parts
         this.load.image('shipEngine', 'assets/sprites/game/Parts/engine1.png');
-        this.load.image('shipEngineThrust', 'assets/sprites/game/Effects/fire01.png');
+        
+        // Load engine thrust animation frames
+        for (let i = 0; i < 20; i++) {
+            const frameNumber = i.toString().padStart(2, '0');
+            this.load.image(`fire${frameNumber}`, `assets/sprites/game/Effects/fire${frameNumber}.png`);
+        }
 
         // Load weapons
         this.load.image('laserBlue01', 'assets/sprites/game/Lasers/laserBlue01.png');
@@ -167,5 +172,31 @@ export class PreloadScene extends Phaser.Scene {
                 console.warn(`Failed to create animation ${animationConfig.key}:`, error);
             }
         });
+
+        // Vytvořit animaci engine thrust z fire efektů
+        this.createEngineAnimations();
+    }
+
+    /**
+     * Vytváří animace pro engine thrust efekty
+     */
+    private createEngineAnimations(): void {
+        // Vytvořit frames array pro fire animaci
+        const fireFrames: Phaser.Types.Animations.AnimationFrame[] = [];
+        
+        for (let i = 0; i < 20; i++) {
+            const frameNumber = i.toString().padStart(2, '0');
+            fireFrames.push({ key: `fire${frameNumber}`, frame: null });
+        }
+
+        // Vytvořit engine thrust animaci
+        this.anims.create({
+            key: 'engineThrust',
+            frames: fireFrames,
+            frameRate: 15, // 15 FPS pro plynulý efekt
+            repeat: -1 // Nekonečná smyčka
+        });
+
+        console.log('Engine thrust animation created with', fireFrames.length, 'frames');
     }
 }
