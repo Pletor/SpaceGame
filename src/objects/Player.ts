@@ -21,6 +21,7 @@ import { WeaponComponent } from '../components/weapons/WeaponComponent';
 import { HealthComponent } from '../components/health/HealthComponent';
 import { ColliderComponent } from '../components/collider/ColliderComponent';
 import { TemporaryShieldComponent } from '../components/TemporaryShieldComponent';
+import { AnimatedShieldComponent } from '../components/AnimatedShieldComponent';
 import { EventBusComponent, CUSTOM_EVENTS } from '../components/events/EventBusComponent';
 import * as Config from '../config/GameConfig';
 
@@ -39,6 +40,7 @@ export class Player extends Phaser.GameObjects.Container {
     private playerHealthComponent!: HealthComponent;
     private playerColliderComponent!: ColliderComponent;
     private temporaryShieldComponent!: TemporaryShieldComponent;
+    private animatedShieldComponent!: AnimatedShieldComponent;
     private eventBusComponent: EventBusComponent;
 
     // Systém sekundární zbraně
@@ -110,6 +112,10 @@ export class Player extends Phaser.GameObjects.Container {
 
     public get tempShieldComponent(): TemporaryShieldComponent {
         return this.temporaryShieldComponent;
+    }
+
+    public get animatedShield(): AnimatedShieldComponent {
+        return this.animatedShieldComponent;
     }
 
     public getSecondaryCooldown(): number {
@@ -191,6 +197,9 @@ export class Player extends Phaser.GameObjects.Container {
 
         // Komponenta dočasného štítu
         this.temporaryShieldComponent = new TemporaryShieldComponent(this.scene, this, this.eventBusComponent);
+
+        // Komponenta animovaného štítu
+        this.animatedShieldComponent = new AnimatedShieldComponent(this.scene, this, this.eventBusComponent);
 
         // Primární zbraňová komponenta
         this.playerWeaponComponent = new WeaponComponent(
@@ -442,5 +451,10 @@ export class Player extends Phaser.GameObjects.Container {
         this.eventBusComponent.off(CUSTOM_EVENTS.PLAYER_SPAWN, this.spawn, this);
         this.eventBusComponent.off(CUSTOM_EVENTS.SHIP_HIT, this.onDamageTaken, this);
         this.scene.events.off('destroy', this.cleanup, this);
+
+        // Vyčistit animovaný štít
+        if (this.animatedShieldComponent) {
+            this.animatedShieldComponent.destroy();
+        }
     }
 }

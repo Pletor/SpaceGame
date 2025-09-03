@@ -21,6 +21,10 @@ export class ShieldPowerUp extends Phaser.GameObjects.Sprite {
     private eventBusComponent: EventBusComponent;
     private rotationSpeed: number;
     private fallSpeed: number;
+    private boundsTimer?: Phaser.Time.TimerEvent;
+
+    // Identifikační vlastnost pro snadnější detekci v GameScene
+    public readonly isPowerUp: boolean = true;
 
     constructor(scene: Phaser.Scene, x: number, y: number, eventBusComponent: EventBusComponent) {
         super(scene, x, y, 'powerupBlue_shield');
@@ -30,6 +34,9 @@ export class ShieldPowerUp extends Phaser.GameObjects.Sprite {
         // Nastavit physics
         scene.physics.world.enable(this);
         scene.add.existing(this);
+
+        // Debug informace
+        console.log('ShieldPowerUp created at:', x, y);
 
         // Nastavit vlastnosti
         this.fallSpeed = Phaser.Math.Between(80, 120);
@@ -75,9 +82,12 @@ export class ShieldPowerUp extends Phaser.GameObjects.Sprite {
      * Kontroluje hranice obrazovky pro auto-destroy
      */
     private checkBounds(): void {
-        this.scene.time.addEvent({
+        this.boundsTimer = this.scene.time.addEvent({
             delay: 100,
             callback: () => {
+                // Kontrola zda objekt stále existuje
+                if (!this.active || !this.scene) return;
+
                 if (this.y > this.scene.scale.height + 50) {
                     this.destroy();
                 }
@@ -100,8 +110,19 @@ export class ShieldPowerUp extends Phaser.GameObjects.Sprite {
      * Obsluha sebrání power-upu hráčem
      */
     public collect(): void {
+        // Zabránit dvojímu sebrání
+        if (!this.active) {
+            console.log('ShieldPowerUp.collect() called but power-up is not active');
+            return;
+        }
+
+        console.log('ShieldPowerUp.collect() - emitting SHIELD_POWERUP_COLLECTED event');
+
         // Emitovat event pro aktivaci štítu
         this.eventBusComponent.emit('SHIELD_POWERUP_COLLECTED');
+
+        // Okamžitě deaktivovat pro zabránění dalších kolizí
+        this.setActive(false);
 
         // Vizuální efekt sebrání
         this.scene.tweens.add({
@@ -111,8 +132,13 @@ export class ShieldPowerUp extends Phaser.GameObjects.Sprite {
             duration: 200,
             ease: 'Power2',
             onComplete: () => {
-                this.destroy();
-            }
+                // Bezpečné zničení objektu
+                if (this && this.scene && this.destroy) {
+                    console.log('ShieldPowerUp destroyed after collection');
+                    this.destroy();
+                }
+            },
+            onCompleteScope: this
         });
     }
 
@@ -120,8 +146,16 @@ export class ShieldPowerUp extends Phaser.GameObjects.Sprite {
      * Vyčištění při destroy
      */
     public destroy(): void {
+        // Zastavit timer pro hranice
+        if (this.boundsTimer) {
+            this.boundsTimer.destroy();
+            this.boundsTimer = undefined;
+        }
+
         // Zastavit všechny tweeny
-        this.scene.tweens.killTweensOf(this);
+        if (this.scene && this.scene.tweens) {
+            this.scene.tweens.killTweensOf(this);
+        }
 
         super.destroy();
     }

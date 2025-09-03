@@ -77,6 +77,12 @@ export class TemporaryShieldComponent {
     private createShieldVisuals(): void {
         // Vytvořit štítový sprite efekt
         this.shieldSprite = this.scene.add.sprite(0, 0, 'shield1');
+
+        if (!this.shieldSprite) {
+            console.error('Nepodařilo se vytvořit shield sprite');
+            return;
+        }
+
         this.shieldSprite.setScale(1.2);
         this.shieldSprite.setAlpha(0.6);
         this.shieldSprite.setTint(0x00ffff); // Cyan barva
@@ -132,7 +138,10 @@ export class TemporaryShieldComponent {
         this.isActive = false;
 
         // Odstranit vizuální efekty
-        if (this.shieldSprite) {
+        if (this.shieldSprite && this.shieldSprite.active) {
+            // Zastavit všechny tweeny na sprite
+            this.scene.tweens.killTweensOf(this.shieldSprite);
+
             // Fade out efekt
             this.scene.tweens.add({
                 targets: this.shieldSprite,
@@ -141,9 +150,12 @@ export class TemporaryShieldComponent {
                 duration: 500,
                 ease: 'Power2',
                 onComplete: () => {
-                    this.shieldSprite?.destroy();
-                    this.shieldSprite = undefined;
-                }
+                    if (this.shieldSprite && this.shieldSprite.destroy) {
+                        this.shieldSprite.destroy();
+                        this.shieldSprite = undefined;
+                    }
+                },
+                onCompleteScope: this
             });
         }
 

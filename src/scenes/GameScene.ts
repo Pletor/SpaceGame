@@ -201,20 +201,24 @@ export class GameScene extends Phaser.Scene {
     private checkPowerUpCollisions(): void {
         if (!this.player || !this.player.active) return;
 
-        // Najít všechny ShieldPowerUp objekty ve scéně
-        const powerUps = this.children.list.filter(child =>
-            child.constructor.name === 'ShieldPowerUp' && child.active
-        );
+        // Najít všechny ShieldPowerUp objekty ve scéně - použít lepší detekci
+        const powerUps = this.children.list.filter(child => {
+            // Zkontrolovat více způsobů identifikace ShieldPowerUp
+            return (child.constructor.name === 'ShieldPowerUp' ||
+                   (child as any).texture?.key === 'powerupBlue_shield' ||
+                   (child as any).isPowerUp === true) &&
+                   (child as any).active;
+        });
 
         powerUps.forEach((powerUp: any) => {
-            // Kontrola vzdálenosti pro kolizi
+            // Kontrola vzdálenosti pro kolizi - zvětšený poloměr pro snadnější sebrání
             const distance = Phaser.Math.Distance.Between(
                 this.player.x, this.player.y,
                 powerUp.x, powerUp.y
             );
 
-            if (distance < 40) { // 40px poloměr kolize
-                console.log('Power-up collected!');
+            if (distance < 60) { // Zvětšeno z 40px na 60px pro snadnější sebrání
+                console.log('Power-up collected at distance:', distance);
                 powerUp.collect();
             }
         });

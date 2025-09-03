@@ -227,7 +227,7 @@ export class Asteroid extends Phaser.GameObjects.Sprite {
             }
         }
 
-        // Šance na drop shield power-upu (15% šance)
+        // Šance na drop shield power-upu (2% šance pro 1-2 power-upy za minutu)
         this.tryDropShieldPowerUp();
     }
 
@@ -237,8 +237,8 @@ export class Asteroid extends Phaser.GameObjects.Sprite {
     private tryDropShieldPowerUp(): void {
         const dropChance = Math.random();
 
-        // 15% šance na drop shield power-upu
-        if (dropChance < 0.15) {
+        // 8% šance na drop shield power-upu (zvýšeno z 2% pro frekvenci 2-5 power-upů za minutu)
+        if (dropChance < 0.08) {
             console.log('Spawning shield power-up at:', this.x, this.y);
 
             // Vytvořit ShieldPowerUp

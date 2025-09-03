@@ -184,6 +184,31 @@ export class PreloadScene extends Phaser.Scene {
 
         // Vytvořit animaci engine thrust z fire efektů
         this.createEngineAnimations();
+
+        // Vytvořit animaci štítu
+        this.createShieldAnimations();
+    }
+
+    /**
+     * Vytváří animace pro štít efekty
+     */
+    private createShieldAnimations(): void {
+        // Vytvořit frames array pro shield animaci
+        const shieldFrames: Phaser.Types.Animations.AnimationFrame[] = [
+            { key: 'shield1', frame: null },
+            { key: 'shield2', frame: null },
+            { key: 'shield3', frame: null }
+        ];
+
+        // Vytvořit shield animaci
+        this.anims.create({
+            key: 'shieldPulsing',
+            frames: shieldFrames,
+            frameRate: 4, // 4 FPS pro jemnější, pomalejší animaci
+            repeat: -1 // Nekonečná smyčka
+        });
+
+        console.log('Shield pulsing animation created');
     }
 
     /**
