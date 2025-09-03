@@ -43,7 +43,12 @@ export class PreloadScene extends Phaser.Scene {
 
         // Load ship parts
         this.load.image('shipEngine', 'assets/sprites/game/Parts/engine1.png');
-        this.load.image('shipEngineThrust', 'assets/sprites/game/Effects/fire01.png');
+
+        // Load engine thrust animation frames
+        for (let i = 0; i < 20; i++) {
+            const frameNumber = i.toString().padStart(2, '0');
+            this.load.image(`fire${frameNumber}`, `assets/sprites/game/Effects/fire${frameNumber}.png`);
+        }
 
         // Load weapons
         this.load.image('laserBlue01', 'assets/sprites/game/Lasers/laserBlue01.png');
@@ -76,6 +81,15 @@ export class PreloadScene extends Phaser.Scene {
 
         // Load effects
         this.load.image('explosion', 'assets/sprites/game/Effects/fire01.png');
+        this.load.image('shield1', 'assets/sprites/game/Effects/shield1.png');
+        this.load.image('shield2', 'assets/sprites/game/Effects/shield2.png');
+        this.load.image('shield3', 'assets/sprites/game/Effects/shield3.png');
+
+        // Load power-ups
+        this.load.image('powerupBlue_shield', 'assets/sprites/game/Power-ups/powerupBlue_shield.png');
+        this.load.image('powerupGreen_shield', 'assets/sprites/game/Power-ups/powerupGreen_shield.png');
+        this.load.image('powerupYellow_shield', 'assets/sprites/game/Power-ups/powerupYellow_shield.png');
+        this.load.image('powerupRed_shield', 'assets/sprites/game/Power-ups/powerupRed_shield.png');
 
         // Load audio
         console.log('PreloadScene: Loading audio files...');
@@ -167,5 +181,56 @@ export class PreloadScene extends Phaser.Scene {
                 console.warn(`Failed to create animation ${animationConfig.key}:`, error);
             }
         });
+
+        // Vytvořit animaci engine thrust z fire efektů
+        this.createEngineAnimations();
+
+        // Vytvořit animaci štítu
+        this.createShieldAnimations();
+    }
+
+    /**
+     * Vytváří animace pro štít efekty
+     */
+    private createShieldAnimations(): void {
+        // Vytvořit frames array pro shield animaci
+        const shieldFrames: Phaser.Types.Animations.AnimationFrame[] = [
+            { key: 'shield1', frame: null },
+            { key: 'shield2', frame: null },
+            { key: 'shield3', frame: null }
+        ];
+
+        // Vytvořit shield animaci
+        this.anims.create({
+            key: 'shieldPulsing',
+            frames: shieldFrames,
+            frameRate: 4, // 4 FPS pro jemnější, pomalejší animaci
+            repeat: -1 // Nekonečná smyčka
+        });
+
+        console.log('Shield pulsing animation created');
+    }
+
+    /**
+     * Vytváří animace pro engine thrust efekty
+     */
+    private createEngineAnimations(): void {
+        // Vytvořit frames array pro fire animaci
+        const fireFrames: Phaser.Types.Animations.AnimationFrame[] = [];
+
+        for (let i = 0; i < 20; i++) {
+            const frameNumber = i.toString().padStart(2, '0');
+            fireFrames.push({ key: `fire${frameNumber}`, frame: null });
+        }
+
+        // Vytvořit engine thrust animaci
+        this.anims.create({
+            key: 'engineThrust',
+            frames: fireFrames,
+            frameRate: 15, // 15 FPS pro plynulý efekt
+            repeat: -1 // Nekonečná smyčka
+        });
+
+        console.log('Engine thrust animation created with', fireFrames.length, 'frames');
     }
 }

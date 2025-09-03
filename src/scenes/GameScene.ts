@@ -177,6 +177,51 @@ export class GameScene extends Phaser.Scene {
             undefined,
             this
         );
+
+        // Nastavit obecnou kolizní detekci pro power-upy
+        this.setupPowerUpCollisions();
+    }
+
+    /**
+     * Nastaví kolizní detekci pro power-upy
+     */
+    private setupPowerUpCollisions(): void {
+        // Periodická kontrola kolizí s power-upy
+        this.time.addEvent({
+            delay: 50, // Kontrola každých 50ms
+            callback: this.checkPowerUpCollisions,
+            callbackScope: this,
+            loop: true
+        });
+    }
+
+    /**
+     * Kontrola kolizí mezi hráčem a power-upy
+     */
+    private checkPowerUpCollisions(): void {
+        if (!this.player || !this.player.active) return;
+
+        // Najít všechny ShieldPowerUp objekty ve scéně - použít lepší detekci
+        const powerUps = this.children.list.filter(child => {
+            // Zkontrolovat více způsobů identifikace ShieldPowerUp
+            return (child.constructor.name === 'ShieldPowerUp' ||
+                   (child as any).texture?.key === 'powerupBlue_shield' ||
+                   (child as any).isPowerUp === true) &&
+                   (child as any).active;
+        });
+
+        powerUps.forEach((powerUp: any) => {
+            // Kontrola vzdálenosti pro kolizi - zvětšený poloměr pro snadnější sebrání
+            const distance = Phaser.Math.Distance.Between(
+                this.player.x, this.player.y,
+                powerUp.x, powerUp.y
+            );
+
+            if (distance < 60) { // Zvětšeno z 40px na 60px pro snadnější sebrání
+                console.log('Power-up collected at distance:', distance);
+                powerUp.collect();
+            }
+        });
     }
 
     /**
@@ -212,6 +257,19 @@ export class GameScene extends Phaser.Scene {
      */
     private handlePlayerAsteroidCollision(player: any, asteroid: any): void {
         if (!player.active || !asteroid.active) return;
+
+        // Ignorovat kolize s fragmenty asteroidů (shardy)
+        if (asteroid.isAsteroidShard) {
+            return; // Shardy nekolidují s hráčem
+        }
+
+        // Zkontrolovat dočasný štít
+        if (player.tempShieldComponent && player.tempShieldComponent.isShieldActive) {
+            console.log('Kolize blokována dočasným štítem!');
+            // Správně zničit asteroid bez poškození hráče
+            this.destroyAsteroidProperly(asteroid);
+            return; // Štít absorbnul zásah
+        }
 
         // Správně zničit asteroid s vyčištěním health baru
         this.destroyAsteroidProperly(asteroid);
@@ -289,11 +347,10 @@ export class GameScene extends Phaser.Scene {
             // Uložit skóre před zničením
             const actualScoreValue = asteroid.getScoreValue ? asteroid.getScoreValue() : scoreValue;
 
-            // Správně zničit asteroid s vyčištěním health baru
-            this.destroyAsteroidProperly(asteroid);
-
-            // Přehrát zvuk zničení asteroidu
-            this.eventBusComponent.emit(CUSTOM_EVENTS.ENEMY_DESTROYED, asteroid);
+            // Emitovat ENEMY_DESTROYED event pro spuštění shatter efektu
+            if (asteroid.eventBusComponent) {
+                asteroid.eventBusComponent.emit(CUSTOM_EVENTS.ENEMY_DESTROYED, asteroid);
+            }
 
             // Přidat skóre za zničení asteroidu
             this.eventBusComponent.emit(CUSTOM_EVENTS.SCORE_CHANGE, actualScoreValue);

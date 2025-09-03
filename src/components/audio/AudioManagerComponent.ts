@@ -111,6 +111,7 @@ export class AudioManagerComponent {
         this.eventBusComponent.on('SHIP_SHOOT_SECONDARY', this.onPlayerShootSecondary, this);
         this.eventBusComponent.on(CUSTOM_EVENTS.SHIP_HIT, this.onPlayerHit, this);
         this.eventBusComponent.on('SHIELD_HIT', this.onShieldHit, this);
+        this.eventBusComponent.on('SHIELD_UP_SOUND', this.onShieldUp, this);
         this.eventBusComponent.on('SHIELD_DEPLETED', this.onShieldDepleted, this);
         this.eventBusComponent.on('SHIELD_REGENERATED', this.onShieldRegenerated, this);
         this.eventBusComponent.on(CUSTOM_EVENTS.ENEMY_DESTROYED, this.onEnemyDestroyed, this);
@@ -168,6 +169,10 @@ export class AudioManagerComponent {
 
     private onShieldHit(): void {
         this.playSound('shieldUp'); // Play shield sound when shield absorbs damage
+    }
+
+    private onShieldUp(): void {
+        this.playSound('shieldUp'); // Play shield up sound when shield segment is repaired
     }
 
     private onShieldDepleted(): void {
@@ -254,9 +259,11 @@ export class AudioManagerComponent {
         this.eventBusComponent.off('SHIP_SHOOT_SECONDARY', this.onPlayerShootSecondary, this);
         this.eventBusComponent.off(CUSTOM_EVENTS.SHIP_HIT, this.onPlayerHit, this);
         this.eventBusComponent.off('SHIELD_HIT', this.onShieldHit, this);
+        this.eventBusComponent.off('SHIELD_UP_SOUND', this.onShieldUp, this);
         this.eventBusComponent.off('SHIELD_DEPLETED', this.onShieldDepleted, this);
         this.eventBusComponent.off('SHIELD_REGENERATED', this.onShieldRegenerated, this);
         this.eventBusComponent.off(CUSTOM_EVENTS.ENEMY_DESTROYED, this.onEnemyDestroyed, this);
+        this.eventBusComponent.off('ASTEROID_SHATTER_SOUND', this.onAsteroidShatter, this);
         this.eventBusComponent.off(CUSTOM_EVENTS.PLAYER_DESTROYED, this.onPlayerDestroyed, this);
         this.eventBusComponent.off(CUSTOM_EVENTS.GAME_OVER, this.onGameOver, this);
 

@@ -20,6 +20,8 @@ import { VerticalMovementComponent } from '../components/movement/VerticalMoveme
 import { WeaponComponent } from '../components/weapons/WeaponComponent';
 import { HealthComponent } from '../components/health/HealthComponent';
 import { ColliderComponent } from '../components/collider/ColliderComponent';
+import { TemporaryShieldComponent } from '../components/TemporaryShieldComponent';
+import { AnimatedShieldComponent } from '../components/AnimatedShieldComponent';
 import { EventBusComponent, CUSTOM_EVENTS } from '../components/events/EventBusComponent';
 import * as Config from '../config/GameConfig';
 
@@ -37,6 +39,8 @@ export class Player extends Phaser.GameObjects.Container {
     private playerSecondaryWeaponComponent!: WeaponComponent;
     private playerHealthComponent!: HealthComponent;
     private playerColliderComponent!: ColliderComponent;
+    private temporaryShieldComponent!: TemporaryShieldComponent;
+    private animatedShieldComponent!: AnimatedShieldComponent;
     private eventBusComponent: EventBusComponent;
 
     // Systém sekundární zbraně
@@ -106,6 +110,14 @@ export class Player extends Phaser.GameObjects.Container {
         return this.playerHealthComponent;
     }
 
+    public get tempShieldComponent(): TemporaryShieldComponent {
+        return this.temporaryShieldComponent;
+    }
+
+    public get animatedShield(): AnimatedShieldComponent {
+        return this.animatedShieldComponent;
+    }
+
     public getSecondaryCooldown(): number {
         return this.secondaryWeaponCooldown;
     }
@@ -125,15 +137,16 @@ export class Player extends Phaser.GameObjects.Container {
      */
     private createSprites(): void {
         // Vytvořit sprite komponenty lodi (pořadí je důležité pro renderování)
-        this.shipEngineThrusterSprite = this.scene.add.sprite(0, 0, 'shipEngineThrust');
+        this.shipEngineThrusterSprite = this.scene.add.sprite(0, 30, 'fire00'); // Posunout více dozadu
         this.shipEngineSprite = this.scene.add.sprite(0, 0, 'shipEngine');
         this.shipSprite = this.scene.add.sprite(0, 0, 'playerShip1_blue');
 
         // Přidat do kontejneru
         this.add([this.shipEngineThrusterSprite, this.shipEngineSprite, this.shipSprite]);
 
-        // Spustit animaci pohonu
-        this.shipEngineThrusterSprite.play('shipEngineThrust');
+        // Nastavit engine thrust animaci - zpočátku skrytý
+        this.shipEngineThrusterSprite.setVisible(false);
+        this.shipEngineThrusterSprite.play('engineThrust');
 
         // Inicializovat štíty
         this.currentShield = this.maxShield;
@@ -181,6 +194,12 @@ export class Player extends Phaser.GameObjects.Container {
 
         // Komponenta kolizí
         this.playerColliderComponent = new ColliderComponent(this.playerHealthComponent, this.eventBusComponent);
+
+        // Komponenta dočasného štítu
+        this.temporaryShieldComponent = new TemporaryShieldComponent(this.scene, this, this.eventBusComponent);
+
+        // Komponenta animovaného štítu
+        this.animatedShieldComponent = new AnimatedShieldComponent(this.scene, this, this.eventBusComponent);
 
         // Primární zbraňová komponenta
         this.playerWeaponComponent = new WeaponComponent(
@@ -287,9 +306,30 @@ export class Player extends Phaser.GameObjects.Container {
         this.verticalMovementComponent.update();
         this.playerWeaponComponent.update(deltaTime);
 
+        // Aktualizovat engine thrust efekt podle pohybu
+        this.updateEngineThrust();
+
         // Aktualizovat cooldown sekundární zbraně
         if (this.secondaryWeaponCooldown > 0) {
             this.secondaryWeaponCooldown -= deltaTime;
+        }
+    }
+
+    /**
+     * Řídí viditelnost engine thrust podle pohybu
+     */
+    private updateEngineThrust(): void {
+        // Zobrazit engine thrust pokud se loď pohybuje
+        const isMoving = this.keyboardInputComponent.upIsDown ||
+                        this.keyboardInputComponent.downIsDown ||
+                        this.keyboardInputComponent.leftIsDown ||
+                        this.keyboardInputComponent.rightIsDown;
+
+        if (isMoving && !this.shipEngineThrusterSprite.visible) {
+            this.shipEngineThrusterSprite.setVisible(true);
+            // Animace už běží z createSprites, jen zobrazíme sprite
+        } else if (!isMoving && this.shipEngineThrusterSprite.visible) {
+            this.shipEngineThrusterSprite.setVisible(false);
         }
     }
 
@@ -388,7 +428,8 @@ export class Player extends Phaser.GameObjects.Container {
         this.setActive(true);
         this.setVisible(true);
         this.shipEngineSprite.setVisible(true);
-        this.shipEngineThrusterSprite.setVisible(true);
+        // Engine thrust zůstane skrytý - zobrazí se jen při pohybu
+        this.shipEngineThrusterSprite.setVisible(false);
 
         // Reset zdraví a stav štítů
         this.currentShield = this.maxShield;
@@ -410,5 +451,10 @@ export class Player extends Phaser.GameObjects.Container {
         this.eventBusComponent.off(CUSTOM_EVENTS.PLAYER_SPAWN, this.spawn, this);
         this.eventBusComponent.off(CUSTOM_EVENTS.SHIP_HIT, this.onDamageTaken, this);
         this.scene.events.off('destroy', this.cleanup, this);
+
+        // Vyčistit animovaný štít
+        if (this.animatedShieldComponent) {
+            this.animatedShieldComponent.destroy();
+        }
     }
 }
