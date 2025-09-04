@@ -2,7 +2,11 @@
  * Hlavní objekt hráče - ovládá loď, zbraně a interakce
  *
  * Funkce:
- * - Spravuje všechny komponenty hráče (pohyb, zbraně, health, kolize)
+ * - Spravuje všechny komponenty     public get healthComponent(): HealthComponent {
+        return this.playerHealthComponent;
+    }
+
+    public get shieldComponent(): SimpleShieldComponent {hyb, zbraně, health, kolize)
  * - Řídí systém štítů namísto přímého poškození
  * - Poskytuje duální zbraňový systém (primární a sekundární)
  * - Řeší respawn a smrt hráče
@@ -20,8 +24,7 @@ import { VerticalMovementComponent } from '../components/movement/VerticalMoveme
 import { WeaponComponent } from '../components/weapons/WeaponComponent';
 import { HealthComponent } from '../components/health/HealthComponent';
 import { ColliderComponent } from '../components/collider/ColliderComponent';
-import { TemporaryShieldComponent } from '../components/TemporaryShieldComponent';
-import { AnimatedShieldComponent } from '../components/AnimatedShieldComponent';
+import { SimpleShieldComponent } from '../components/SimpleShieldComponent';
 import { EventBusComponent, CUSTOM_EVENTS } from '../components/events/EventBusComponent';
 import * as Config from '../config/GameConfig';
 
@@ -30,6 +33,7 @@ export class Player extends Phaser.GameObjects.Container {
     private shipSprite!: Phaser.GameObjects.Sprite;
     private shipEngineSprite!: Phaser.GameObjects.Sprite;
     private shipEngineThrusterSprite!: Phaser.GameObjects.Sprite;
+    private standardShieldSprite?: Phaser.GameObjects.Sprite; // Vizuální standardní štít
 
     // Herní komponenty
     private keyboardInputComponent!: KeyboardInputComponent;
@@ -39,8 +43,7 @@ export class Player extends Phaser.GameObjects.Container {
     private playerSecondaryWeaponComponent!: WeaponComponent;
     private playerHealthComponent!: HealthComponent;
     private playerColliderComponent!: ColliderComponent;
-    private temporaryShieldComponent!: TemporaryShieldComponent;
-    private animatedShieldComponent!: AnimatedShieldComponent;
+    private simpleShieldComponent!: SimpleShieldComponent;
     private eventBusComponent: EventBusComponent;
 
     // Systém sekundární zbraně
@@ -110,12 +113,15 @@ export class Player extends Phaser.GameObjects.Container {
         return this.playerHealthComponent;
     }
 
-    public get tempShieldComponent(): TemporaryShieldComponent {
-        return this.temporaryShieldComponent;
+    public get simpleShield(): SimpleShieldComponent {
+        return this.simpleShieldComponent;
     }
 
-    public get animatedShield(): AnimatedShieldComponent {
-        return this.animatedShieldComponent;
+    /**
+     * Získání aktuální úrovně standardního štítu
+     */
+    public get currentShieldLevel(): number {
+        return this.currentShield;
     }
 
     public getSecondaryCooldown(): number {
@@ -153,19 +159,78 @@ export class Player extends Phaser.GameObjects.Container {
     }
 
     /**
-     * Aktualizuje vizualizaci štítů
+     * Aktualizuje vizualizaci štítů - vytváří vizuální štít kolem lodi
      */
     private updateShieldVisualization(): void {
-        // Zobrazit normální loď - štíty jsou neviditelné ale ochranné
-        this.shipSprite.setTexture('playerShip1_blue');
+        // Zničit existující standardní štít sprite
+        if (this.standardShieldSprite) {
+            this.scene.tweens.killTweensOf(this.standardShieldSprite);
+            this.standardShieldSprite.destroy();
+            this.standardShieldSprite = undefined;
+        }
 
-        // Přidat efekt štítů podle úrovně štítů
+        // Zobrazit normální loď
+        this.shipSprite.setTexture('playerShip1_blue');
+        this.shipSprite.setTint(0xffffff); // Normální barva
+
+        // Vytvořit vizuální štít podle úrovně štítů
         if (this.currentShield > 0) {
-            // V budoucnu zde může být přidán efekt záře štítů
-            this.shipSprite.setTint(0xffffff); // Normální barva
+            this.createStandardShieldSprite();
+        }
+    }
+
+    /**
+     * Vytvoří vizuální standardní štít kolem lodi
+     */
+    private createStandardShieldSprite(): void {
+        console.log('Creating standard shield sprite for level:', this.currentShield);
+
+        // Vybrat texturu podle úrovně štítu
+        let shieldTexture: string;
+        let shieldColor: number;
+
+        if (this.currentShield >= 3) {
+            // Plný štít - nejsilnější textura s jasnou cyan
+            shieldTexture = 'shield3';
+            shieldColor = 0x00ffff; // Cyan
+        } else if (this.currentShield >= 2) {
+            // Částečný štít - střední textura se světlejší cyan
+            shieldTexture = 'shield2';
+            shieldColor = 0x66ffff; // Světlejší cyan
         } else {
-            // Bez štítů - normální vzhled
-            this.shipSprite.setTint(0xffffff);
+            // Slabý štít - nejslabší textura s nejsvětlejší cyan
+            shieldTexture = 'shield1';
+            shieldColor = 0x99ffff; // Nejsvětlejší cyan
+        }
+
+        // Vytvořit sprite standardního štítu - přímo v kontejneru na pozici 0,0
+        this.standardShieldSprite = this.scene.add.sprite(0, 0, shieldTexture);
+        this.standardShieldSprite.setScale(1.0); // Menší než dočasný štít
+        this.standardShieldSprite.setAlpha(0.6); // Průhlednější než dočasný štít
+        this.standardShieldSprite.setTint(shieldColor);
+
+        // Přidat ho do kontejneru
+        this.add(this.standardShieldSprite);        // Jemná pulsující animace
+        this.scene.tweens.add({
+            targets: this.standardShieldSprite,
+            alpha: { from: 0.4, to: 0.7 },
+            scale: { from: 0.95, to: 1.05 },
+            duration: 1500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        console.log('Standard shield sprite created with texture:', shieldTexture, 'for level:', this.currentShield);
+    }
+
+    /**
+     * Aktualizuje pozici standardního štítu podle hráče
+     */
+    private updateStandardShieldPosition(): void {
+        if (this.standardShieldSprite) {
+            // Štít je už v kontejneru, takže se automaticky pohybuje s hráčem
+            // Ale můžeme zde přidat další logiku v budoucnu
         }
     }
 
@@ -195,11 +260,8 @@ export class Player extends Phaser.GameObjects.Container {
         // Komponenta kolizí
         this.playerColliderComponent = new ColliderComponent(this.playerHealthComponent, this.eventBusComponent);
 
-        // Komponenta dočasného štítu
-        this.temporaryShieldComponent = new TemporaryShieldComponent(this.scene, this, this.eventBusComponent);
-
-        // Komponenta animovaného štítu
-        this.animatedShieldComponent = new AnimatedShieldComponent(this.scene, this, this.eventBusComponent);
+        // Komponenta jednoduchého štítu
+        this.simpleShieldComponent = new SimpleShieldComponent(this, this.scene, this.eventBusComponent);
 
         // Primární zbraňová komponenta
         this.playerWeaponComponent = new WeaponComponent(
@@ -248,27 +310,64 @@ export class Player extends Phaser.GameObjects.Container {
         // Poslouchat event vyčerpání štítů - kdy by hráč měl zemřít
         this.eventBusComponent.on('SHIELD_DEPLETED', this.onShieldDepleted, this);
 
+        // Poslouchat opravy štítů
+        this.eventBusComponent.on('SHIELD_SEGMENT_REPAIRED', this.onShieldSegmentRepaired, this);
+
+        // Event pro dotaz na aktuální úroveň štítu
+        this.eventBusComponent.on('GET_PLAYER_SHIELD_LEVEL', (callback: (level: number) => void) => {
+            if (callback && typeof callback === 'function') {
+                callback(this.currentShield);
+            }
+        });
+
         // Vyčistit při zničení
         this.scene.events.once('destroy', this.cleanup, this);
+
+        // Inicializovat vizuální štít
+        this.updateShieldVisualization();
     }
 
     /**
-     * Zpracovává přijaté poškození
+     * Zpracovává přijaté poškození - kombinace nového štítu a standardního systému
      */
     private onDamageTaken(): void {
-        console.log('Player.onDamageTaken volán - emituju SHIELD_HIT event');
+        console.log('Player.onDamageTaken volán - kontroluji štíty');
 
-        // Emitovat SHIELD_HIT aby ShieldDisplayComponent mohl zpracovat logiku štítů
-        this.eventBusComponent.emit('SHIELD_HIT');
+        // 1. Kontrola jestli je aktivní dočasný štít z SimpleShieldComponent
+        if (this.simpleShieldComponent.isActive) {
+            console.log('Damage absorbed by active temporary shield');
+            // Dočasný štít absorbuje všechno poškození
+            this.scene.cameras.main.shake(100, 0.01); // Menší otřes
+            return;
+        }
 
-        // Přidat efekt otřesu obrazovky pro dopad
-        this.scene.cameras.main.shake(200, 0.02);
+        // 2. Pokud není aktivní dočasný štít, použij standardní štítový systém (3 úrovně)
+        console.log('No temporary shield - checking standard shield. Current level:', this.currentShield);
 
-        // Nechat ShieldDisplayComponent zpracovat logiku štítů
-        // Budeme poslouchat SHIELD_DEPLETED abychom věděli, kdy hráč má zemřít
-    }
+        if (this.currentShield > 0) {
+            // Zmenšit standardní štít
+            this.currentShield--;
+            console.log('Standard shield hit! New level:', this.currentShield);
 
-    /**
+            // Aktualizovat vizualizaci poškození
+            this.updateShieldVisualization();
+
+            // Emitovat event pro UI aktualizaci
+            this.eventBusComponent.emit('SHIELD_HIT');
+
+            // Efekt otřesu obrazovky pro dopad
+            this.scene.cameras.main.shake(200, 0.02);
+
+            if (this.currentShield <= 0) {
+                console.log('Standard shield depleted - player dies!');
+                this.onShieldDepleted();
+            }
+        } else {
+            // Žádný štít - hráč umírá
+            console.log('No shields left - player dies immediately!');
+            this.onShieldDepleted();
+        }
+    }    /**
      * Zpracovává vyčerpání štítů
      */
     private onShieldDepleted(): void {
@@ -276,6 +375,16 @@ export class Player extends Phaser.GameObjects.Container {
         // Štíty jsou pryč, hráč umírá
         this.playerHealthComponent.die();
         // PLAYER_DESTROYED bude automaticky emitován handleDeath()
+    }
+
+    /**
+     * Zpracuje opravu segmentu štítu
+     */
+    private onShieldSegmentRepaired(): void {
+        if (this.currentShield < this.maxShield) {
+            this.currentShield++;
+            console.log(`Player shield repaired! Current shield: ${this.currentShield}/${this.maxShield}`);
+        }
     }
 
     /**
@@ -305,6 +414,10 @@ export class Player extends Phaser.GameObjects.Container {
         this.horizontalMovementComponent.update();
         this.verticalMovementComponent.update();
         this.playerWeaponComponent.update(deltaTime);
+        this.simpleShieldComponent.update();
+
+        // Aktualizovat pozici standardního štítu
+        this.updateStandardShieldPosition();
 
         // Aktualizovat engine thrust efekt podle pohybu
         this.updateEngineThrust();
@@ -435,6 +548,9 @@ export class Player extends Phaser.GameObjects.Container {
         this.currentShield = this.maxShield;
         this.playerHealthComponent.reset();
 
+        // SimpleShieldComponent zůstává aktivní i po smrti - nikdy se neničí
+        console.log('Player spawned - SimpleShieldComponent state preserved');
+
         // Reset na normální texturu lodi
         this.shipSprite.setTexture('playerShip1_blue');
         this.updateShieldVisualization();
@@ -447,14 +563,25 @@ export class Player extends Phaser.GameObjects.Container {
      * Vyčistí event listenery při zničení objektu
      */
     private cleanup(): void {
+        console.log('Player.cleanup called - destroying components');
         this.scene.events.off('update', this.update, this);
         this.eventBusComponent.off(CUSTOM_EVENTS.PLAYER_SPAWN, this.spawn, this);
         this.eventBusComponent.off(CUSTOM_EVENTS.SHIP_HIT, this.onDamageTaken, this);
+        this.eventBusComponent.off('SHIELD_DEPLETED', this.onShieldDepleted, this);
+        this.eventBusComponent.off('SHIELD_SEGMENT_REPAIRED', this.onShieldSegmentRepaired, this);
         this.scene.events.off('destroy', this.cleanup, this);
 
-        // Vyčistit animovaný štít
-        if (this.animatedShieldComponent) {
-            this.animatedShieldComponent.destroy();
+        // Vyčistit animovaný štít - NENIČÍME ho při smrti, jen resetujeme stav
+        if (this.simpleShieldComponent && this.simpleShieldComponent.isActive) {
+            console.log('Deactivating shield due to player death');
+            // Štít zůstává aktivní i po smrti - podle požadavku uživatele
+        }
+
+        // Vyčistit standardní štít
+        if (this.standardShieldSprite) {
+            this.scene.tweens.killTweensOf(this.standardShieldSprite);
+            this.standardShieldSprite.destroy();
+            this.standardShieldSprite = undefined;
         }
     }
 }

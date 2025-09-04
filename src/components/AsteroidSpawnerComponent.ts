@@ -66,19 +66,32 @@ export class AsteroidSpawnerComponent {
      * Vytvoří nový asteroid s náhodnými vlastnostmi
      */
     private spawnAsteroid(): void {
+        // Získat dostupné typy asteroidů
+        const availableTypes = this.getAvailableAsteroidTypes();
+
+        if (availableTypes.length === 0) {
+            this.stop();
+            return;
+        }
+
         // Náhodná pozice podél horní části obrazovky
         const x = Phaser.Math.Between(50, this.scene.scale.width - 50);
         const y = -50; // Začít nad obrazovkou
 
-        // Definice typů asteroidů s různými vlastnostmi
-        const asteroidTypes = this.getAsteroidTypes();
-        const randomType = Phaser.Utils.Array.GetRandom(asteroidTypes);
+        // Vybrat dostupný typ
+        const randomType = Phaser.Utils.Array.GetRandom(availableTypes);
         const randomTexture = Phaser.Utils.Array.GetRandom(randomType.textures);
 
         // Vytvořit asteroid s konkrétními vlastnostmi
         const asteroid = new Asteroid(this.scene, x, y, this.eventBusComponent, randomType.health, randomType.speed, randomType.score);
         asteroid.setTexture(randomTexture);
         asteroid.setScale(randomType.scale);
+
+        // Nastavit typ pro tracking
+        (asteroid as any).asteroidType = randomType.type;
+
+        // Emitovat event o spawnu
+        this.eventBusComponent.emit('ASTEROID_SPAWNED', randomType.type);
 
         // Přidat do skupiny
         this.asteroids.add(asteroid);
@@ -90,30 +103,49 @@ export class AsteroidSpawnerComponent {
     /**
      * Definuje typy asteroidů s jejich vlastnostmi
      */
-    private getAsteroidTypes(): Array<{textures: string[], scale: number, health: number, speed: number, score: number}> {
+    private getAsteroidTypes(): Array<{type: string, textures: string[], scale: number, health: number, speed: number, score: number}> {
         return [
             {
-                textures: ['meteor1', 'meteor2', 'meteor3', 'meteor4'],
+                type: 'large',
+                textures: ['meteorBrown_big1', 'meteorBrown_big2', 'meteorGrey_big1', 'meteorGrey_big2'],
                 scale: 1.0,
                 health: 3,
-                speed: 100,
+                speed: 80,
                 score: 100
             },
             {
-                textures: ['meteorMed1', 'meteorMed2'],
+                type: 'medium',
+                textures: ['meteorBrown_med1', 'meteorBrown_med3', 'meteorGrey_med1', 'meteorGrey_med2'],
                 scale: 0.7,
                 health: 2,
-                speed: 120,
+                speed: 100,
                 score: 150
             },
             {
-                textures: ['meteorSmall1', 'meteorSmall2'],
+                type: 'small',
+                textures: ['meteorBrown_small1', 'meteorBrown_small2', 'meteorGrey_small1', 'meteorGrey_small2'],
                 scale: 0.5,
                 health: 1,
-                speed: 150,
+                speed: 120,
                 score: 200
             }
         ];
+    }
+
+    /**
+     * Získá dostupné typy asteroidů (které se ještě mohou spawnovat)
+     */
+    private getAvailableAsteroidTypes(): Array<{type: string, textures: string[], scale: number, health: number, speed: number, score: number}> {
+        const allTypes = this.getAsteroidTypes();
+
+        return allTypes.filter(type => {
+            // Emitovat dotaz na tracker zda se může asteroid spawnovat
+            let canSpawn = false;
+            this.eventBusComponent.emit('CAN_SPAWN_ASTEROID', type.type, (result: boolean) => {
+                canSpawn = result;
+            });
+            return canSpawn;
+        });
     }
 
     /**

@@ -6,26 +6,33 @@ export class PreloadScene extends Phaser.Scene {
     }
 
     preload() {
-        // Load progress bar background
-        this.add.rectangle(400, 300, 320, 50, 0x000000);
-        this.add.rectangle(400, 300, 300, 30, 0x333333);
+        // Získat rozměry obrazovky pro centrování
+        const centerX = this.scale.width / 2;
+        const centerY = this.scale.height / 2;
 
-        // Progress bar
-        const progressBar = this.add.rectangle(400, 300, 0, 30, 0x00ff00);
+        // Load progress bar background - vycentrovaný
+        this.add.rectangle(centerX, centerY + 40, 320, 50, 0x000000);
+        this.add.rectangle(centerX, centerY + 40, 300, 30, 0x333333);
 
-        // Loading text
-        const loadingText = this.add.text(400, 260, 'Loading...', {
+        // Progress bar - vycentrovaný, začíná od 0
+        const progressBar = this.add.rectangle(centerX - 150, centerY + 40, 0, 30, 0x00ff00);
+        progressBar.setOrigin(0, 0.5); // Nastavit origin na levý střed
+
+        // Loading text - vycentrovaný s procentami
+        const loadingText = this.add.text(centerX, centerY, 'Loading... 0%', {
             fontSize: '20px',
             color: '#ffffff'
         }).setOrigin(0.5);
 
-        // Update progress bar
+        // Update progress bar a text s procentami
         this.load.on('progress', (value: number) => {
+            const percentage = Math.round(value * 100);
             progressBar.width = 300 * value;
+            loadingText.setText(`Loading... ${percentage}%`);
         });
 
         this.load.on('complete', () => {
-            loadingText.setText('Complete!');
+            loadingText.setText('Complete! 100%');
         });
 
         // Load all game assets manually
@@ -71,6 +78,19 @@ export class PreloadScene extends Phaser.Scene {
 
         // Load meteors/asteroids
         this.load.image('meteor1', 'assets/sprites/game/Meteors/meteorBrown_big1.png');
+        this.load.image('meteorBrown_small1', 'assets/sprites/game/Meteors/meteorBrown_small1.png');
+        this.load.image('meteorBrown_small2', 'assets/sprites/game/Meteors/meteorBrown_small2.png');
+        this.load.image('meteorBrown_med1', 'assets/sprites/game/Meteors/meteorBrown_med1.png');
+        this.load.image('meteorBrown_med3', 'assets/sprites/game/Meteors/meteorBrown_med3.png');
+        this.load.image('meteorBrown_big1', 'assets/sprites/game/Meteors/meteorBrown_big1.png');
+        this.load.image('meteorBrown_big2', 'assets/sprites/game/Meteors/meteorBrown_big2.png');
+        this.load.image('meteorBrown_big3', 'assets/sprites/game/Meteors/meteorBrown_big3.png');
+        this.load.image('meteorGrey_small1', 'assets/sprites/game/Meteors/meteorGrey_small1.png');
+        this.load.image('meteorGrey_small2', 'assets/sprites/game/Meteors/meteorGrey_small2.png');
+        this.load.image('meteorGrey_med1', 'assets/sprites/game/Meteors/meteorGrey_med1.png');
+        this.load.image('meteorGrey_med2', 'assets/sprites/game/Meteors/meteorGrey_med2.png');
+        this.load.image('meteorGrey_big1', 'assets/sprites/game/Meteors/meteorGrey_big1.png');
+        this.load.image('meteorGrey_big2', 'assets/sprites/game/Meteors/meteorGrey_big2.png');
         this.load.image('meteor2', 'assets/sprites/game/Meteors/meteorBrown_big2.png');
         this.load.image('meteor3', 'assets/sprites/game/Meteors/meteorGrey_big1.png');
         this.load.image('meteor4', 'assets/sprites/game/Meteors/meteorGrey_big2.png');

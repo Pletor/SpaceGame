@@ -23,7 +23,9 @@ import { CooldownBarComponent } from '../components/ui/CooldownBarComponent';
 import { AmmoDisplayComponent } from '../components/ui/AmmoDisplayComponent';
 import { AudioControlMenu } from '../components/ui/AudioControlMenu';
 import { ShieldDisplayComponent } from '../components/ui/ShieldDisplayComponent';
+import { ShieldUIComponent } from '../components/ui/ShieldUIComponent';
 import { AudioManagerComponent } from '../components/audio/AudioManagerComponent';
+import { AsteroidTrackerComponent } from '../components/ui/AsteroidTrackerComponent';
 
 export class GameScene extends Phaser.Scene {
     // Hlavní herní objekty
@@ -37,7 +39,9 @@ export class GameScene extends Phaser.Scene {
     private cooldownBar!: CooldownBarComponent;
     private ammoDisplay!: AmmoDisplayComponent;
     private shieldDisplay!: ShieldDisplayComponent;
+    private shieldUI!: ShieldUIComponent;
     private audioControlMenu!: AudioControlMenu;
+    private asteroidTracker!: AsteroidTrackerComponent;
 
     // Audio systém
     private audioManager!: AudioManagerComponent;
@@ -77,8 +81,8 @@ export class GameScene extends Phaser.Scene {
         this.audioManager = new AudioManagerComponent(this, this.eventBusComponent);
         this.startBackgroundMusicWithFallback();
 
-        // Vytvořit ovládání audia (pravý horní roh)
-        this.audioControlMenu = new AudioControlMenu(this, this.audioManager, this.scale.width - 60, 220);
+        // Vytvořit ovládání audia (pravý horní roh s větším odstupem)
+        this.audioControlMenu = new AudioControlMenu(this, this.audioManager, this.scale.width - 60, 280);
 
         // Nastavit detekci kolizí
         this.setupCollisions();
@@ -94,9 +98,22 @@ export class GameScene extends Phaser.Scene {
         // Aktualizovat spawner asteroidů
         this.asteroidSpawner.update(deltaTime);
 
+        // Aktualizovat všechny asteroidy pro escape detection
+        const asteroids = this.asteroidSpawner.asteroidGroup.getChildren() as any[];
+        asteroids.forEach((asteroid) => {
+            if (asteroid && asteroid.update && typeof asteroid.update === 'function') {
+                asteroid.update();
+            }
+        });
+
         // Aktualizovat cooldown bar
         if (this.player && this.cooldownBar) {
             this.cooldownBar.updateCooldown(this.player.getSecondaryCooldown());
+        }
+
+        // Aktualizovat shield UI
+        if (this.shieldUI) {
+            this.shieldUI.update();
         }
 
         // Aktualizovat displej munice
@@ -121,10 +138,17 @@ export class GameScene extends Phaser.Scene {
         this.livesComponent = new LivesComponent(this, 40, 80, this.eventBusComponent);
         this.ammoDisplay = new AmmoDisplayComponent(this, 40, 130);
 
-        // Pravá strana UI - blíže k okraji pro lepší viditelnost
-        const rightX = this.scale.width - 260;
-        this.cooldownBar = new CooldownBarComponent(this, rightX, 60, 240, 30, 10000);
-        this.shieldDisplay = new ShieldDisplayComponent(this, rightX, 150, this.eventBusComponent);
+        // Asteroid tracker pod zbraněmi na levé straně s větší mezerou
+        this.asteroidTracker = new AsteroidTrackerComponent(this, 40, 200, this.eventBusComponent);
+
+        // Pravá strana UI - optimálně rozmístěné s většími odstupy
+        const rightX = this.scale.width - 220; // Posunuto blíže k okraji
+
+        this.cooldownBar = new CooldownBarComponent(this, rightX, 80, 200, 25, 10000); // Menší a výše
+        this.shieldDisplay = new ShieldDisplayComponent(this, rightX, 180, this.eventBusComponent); // Větší odstup dolů
+
+        // Nové UI pro jednoduché štíty
+        this.shieldUI = new ShieldUIComponent(this, this.eventBusComponent);
     }
 
     /**
@@ -136,6 +160,9 @@ export class GameScene extends Phaser.Scene {
 
         // Poslouchat událost game over
         this.eventBusComponent.on(CUSTOM_EVENTS.GAME_OVER, this.handleGameOver, this);
+
+        // Poslouchat dokončení hry (všechny asteroidy zničeny)
+        this.eventBusComponent.on('GAME_COMPLETED', this.handleGameCompleted, this);
     }
 
     /**
@@ -178,50 +205,7 @@ export class GameScene extends Phaser.Scene {
             this
         );
 
-        // Nastavit obecnou kolizní detekci pro power-upy
-        this.setupPowerUpCollisions();
-    }
-
-    /**
-     * Nastaví kolizní detekci pro power-upy
-     */
-    private setupPowerUpCollisions(): void {
-        // Periodická kontrola kolizí s power-upy
-        this.time.addEvent({
-            delay: 50, // Kontrola každých 50ms
-            callback: this.checkPowerUpCollisions,
-            callbackScope: this,
-            loop: true
-        });
-    }
-
-    /**
-     * Kontrola kolizí mezi hráčem a power-upy
-     */
-    private checkPowerUpCollisions(): void {
-        if (!this.player || !this.player.active) return;
-
-        // Najít všechny ShieldPowerUp objekty ve scéně - použít lepší detekci
-        const powerUps = this.children.list.filter(child => {
-            // Zkontrolovat více způsobů identifikace ShieldPowerUp
-            return (child.constructor.name === 'ShieldPowerUp' ||
-                   (child as any).texture?.key === 'powerupBlue_shield' ||
-                   (child as any).isPowerUp === true) &&
-                   (child as any).active;
-        });
-
-        powerUps.forEach((powerUp: any) => {
-            // Kontrola vzdálenosti pro kolizi - zvětšený poloměr pro snadnější sebrání
-            const distance = Phaser.Math.Distance.Between(
-                this.player.x, this.player.y,
-                powerUp.x, powerUp.y
-            );
-
-            if (distance < 60) { // Zvětšeno z 40px na 60px pro snadnější sebrání
-                console.log('Power-up collected at distance:', distance);
-                powerUp.collect();
-            }
-        });
+        // Starý power-up systém vymazán - používáme nový SimpleShieldComponent
     }
 
     /**
@@ -263,8 +247,8 @@ export class GameScene extends Phaser.Scene {
             return; // Shardy nekolidují s hráčem
         }
 
-        // Zkontrolovat dočasný štít
-        if (player.tempShieldComponent && player.tempShieldComponent.isShieldActive) {
+        // Zkontrolovat dočasný štít přes SimpleShieldComponent
+        if (player.simpleShield && player.simpleShield.isActive) {
             console.log('Kolize blokována dočasným štítem!');
             // Správně zničit asteroid bez poškození hráče
             this.destroyAsteroidProperly(asteroid);
@@ -274,8 +258,9 @@ export class GameScene extends Phaser.Scene {
         // Správně zničit asteroid s vyčištěním health baru
         this.destroyAsteroidProperly(asteroid);
 
-        // Hráč kolliduje s asteroidem - hráč dostane zásah a respawnuje se
+        // Hráč kolliduje s asteroidem - hráč dostane zásah
         // ColliderComponent zpracuje emisi SHIP_HIT eventu
+        console.log('Player-asteroid collision - emitting SHIP_HIT event');
         if (player.colliderComponent) {
             player.colliderComponent.collideWithEnemyShip();
         }
@@ -438,14 +423,138 @@ export class GameScene extends Phaser.Scene {
         const restartText = this.add.text(
             this.scale.width / 2,
             this.scale.height / 2 + 40,
-            'Stiskni R pro restart',
+            'Stiskni R pro restart nebo ESC pro ukončení',
             {
-                fontSize: '24px',
+                fontSize: '20px',
                 color: '#00ff00',
                 fontFamily: 'Arial'
             }
         ).setOrigin(0.5);
         restartText.setDepth(1001);
+    }
+
+    /**
+     * Zpracuje událost dokončení hry
+     */
+    private handleGameCompleted(data: any): void {
+        console.log('Game completed event received:', data);
+
+        // Zastavit spawning
+        if (this.asteroidSpawner) {
+            this.asteroidSpawner.stop();
+        }
+
+        // Zobrazit výsledky a možnost restartu
+        this.displayGameCompletedUI(data);
+    }
+
+    /**
+     * Zobrazí UI pro dokončení hry s motivační zprávou
+     */
+    private displayGameCompletedUI(data: any): void {
+        // Hra dokončena nadpis
+        const completedText = this.add.text(
+            this.scale.width / 2,
+            this.scale.height / 2 - 150,
+            'HRA DOKONČENA!',
+            {
+                fontSize: '48px',
+                color: '#00ff00',
+                fontFamily: 'Arial',
+                stroke: '#000000',
+                strokeThickness: 3
+            }
+        ).setOrigin(0.5);
+        completedText.setDepth(1001);
+
+        // Motivační zpráva
+        const motivationText = this.add.text(
+            this.scale.width / 2,
+            this.scale.height / 2 - 90,
+            data.message,
+            {
+                fontSize: '28px',
+                color: '#ffff00',
+                fontFamily: 'Arial',
+                align: 'center'
+            }
+        ).setOrigin(0.5);
+        motivationText.setDepth(1001);
+
+        // Úspěšnost v procentech
+        const percentageText = this.add.text(
+            this.scale.width / 2,
+            this.scale.height / 2 - 40,
+            `Úspěšnost: ${data.percentage}%`,
+            {
+                fontSize: '32px',
+                color: '#ffffff',
+                fontFamily: 'Arial'
+            }
+        ).setOrigin(0.5);
+        percentageText.setDepth(1001);
+
+        // Finální skóre
+        const finalScore = this.scoreComponent ? this.scoreComponent.getScore() : 0;
+        const scoreText = this.add.text(
+            this.scale.width / 2,
+            this.scale.height / 2 + 10,
+            `Finální skóre: ${finalScore}`,
+            {
+                fontSize: '24px',
+                color: '#ffffff',
+                fontFamily: 'Arial'
+            }
+        ).setOrigin(0.5);
+        scoreText.setDepth(1001);
+
+        // Detailní statistiky asteroidů
+        const statsText = this.add.text(
+            this.scale.width / 2,
+            this.scale.height / 2 + 40,
+            `Sestřeleno asteroidů: ${data.totalDestroyed}/${data.totalMax}`,
+            {
+                fontSize: '20px',
+                color: '#00ffff',
+                fontFamily: 'Arial'
+            }
+        ).setOrigin(0.5);
+        statsText.setDepth(1001);
+
+        // Detailní rozpis podle velikosti
+        let detailsY = this.scale.height / 2 + 70;
+        if (data.stats && Array.isArray(data.stats)) {
+            data.stats.forEach((stat: any) => {
+                const detailText = this.add.text(
+                    this.scale.width / 2,
+                    detailsY,
+                    `${stat.type.charAt(0).toUpperCase() + stat.type.slice(1)}: ${stat.destroyed}/${stat.maxSpawns} (uteklo: ${stat.escaped})`,
+                    {
+                        fontSize: '16px',
+                        color: '#cccccc',
+                        fontFamily: 'Arial'
+                    }
+                ).setOrigin(0.5);
+                detailText.setDepth(1001);
+                detailsY += 25;
+            });
+        }
+
+        // Instrukce pro restart
+        const restartText = this.add.text(
+            this.scale.width / 2,
+            this.scale.height / 2 + 150,
+            'Stiskni R pro restart nebo ESC pro ukončení',
+            {
+                fontSize: '18px',
+                color: '#00ff00',
+                fontFamily: 'Arial'
+            }
+        ).setOrigin(0.5);
+        restartText.setDepth(1001);
+
+        // Znovu nastavit restart funkcionalitu pro konec hry
+        this.setupGameEndRestart();
     }
 
     /**
@@ -457,6 +566,44 @@ export class GameScene extends Phaser.Scene {
             restartKey.on('down', () => {
                 console.log('Restartování hry...');
                 this.scene.restart();
+            });
+        }
+
+        // Přidat ESC klavesu pro ukončení hry
+        const escapeKey = this.input.keyboard?.addKey('ESC');
+        if (escapeKey) {
+            escapeKey.on('down', () => {
+                console.log('🛑 Ukončování hry pomocí ESC...');
+                this.stopGameActivity();
+                this.scene.start('BootScene'); // Vrátit se na boot obrazovku
+            });
+        }
+    }
+
+    /**
+     * Nastaví restart pro konec hry (znovu kvůli možným konfliktům)
+     */
+    private setupGameEndRestart(): void {
+        // Odstraň všechny existující listenery pro R klavesu
+        this.input.keyboard?.removeKey('R');
+        this.input.keyboard?.removeKey('ESC');
+
+        // Znovu vytvoř restart listener
+        const restartKey = this.input.keyboard?.addKey('R');
+        if (restartKey) {
+            restartKey.on('down', () => {
+                console.log('🔄 Restartování hry po dokončení...');
+                this.scene.restart();
+            });
+        }
+
+        // Znovu vytvoř escape listener
+        const escapeKey = this.input.keyboard?.addKey('ESC');
+        if (escapeKey) {
+            escapeKey.on('down', () => {
+                console.log('🛑 Ukončování hry po dokončení pomocí ESC...');
+                this.stopGameActivity();
+                this.scene.start('BootScene');
             });
         }
     }

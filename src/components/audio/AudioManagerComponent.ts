@@ -35,12 +35,7 @@ export class AudioManagerComponent {
      * Inicializuje všechny zvuky ve hře
      */
     private initializeSounds(): void {
-        console.log('AudioManager: Inicializuji zvuky...');
-
-        // Inicializovat hudbu na pozadí
         this.initializeBackgroundMusic();
-
-        // Inicializovat zvukové efekty
         this.initializeSoundEffects();
     }
 
@@ -50,16 +45,9 @@ export class AudioManagerComponent {
     private initializeBackgroundMusic(): void {
         if (this.scene.sound.get('bg')) {
             this.backgroundMusic = this.scene.sound.get('bg');
-            console.log('AudioManager: Hudba na pozadí "bg" nalezena a načtena');
         } else {
-            console.warn('AudioManager: Hudba na pozadí "bg" nenalezena, pokouším se vytvořit...');
             try {
                 this.backgroundMusic = this.scene.sound.add('bg');
-                if (this.backgroundMusic) {
-                    console.log('AudioManager: Hudba na pozadí "bg" úspěšně vytvořena');
-                } else {
-                    console.error('AudioManager: Nepodařilo se vytvořit hudbu na pozadí "bg"');
-                }
             } catch (error) {
                 console.error('AudioManager: Chyba při vytváření hudby na pozadí:', error);
             }
@@ -85,15 +73,11 @@ export class AudioManagerComponent {
             const sound = this.scene.sound.get(key);
             if (sound) {
                 this.soundEffects.set(key, sound);
-                console.log(`Zvuk "${key}" načten úspěšně`);
             } else {
-                console.warn(`Zvuk "${key}" nenalezen, vytvářím nový`);
-                // Pokusit se vytvořit zvuk pokud neexistuje
                 try {
                     const newSound = this.scene.sound.add(key);
                     if (newSound) {
                         this.soundEffects.set(key, newSound);
-                        console.log(`Zvuk "${key}" vytvořen úspěšně`);
                     }
                 } catch (error) {
                     console.error(`Nepodařilo se vytvořit zvuk "${key}":`, error);
@@ -124,27 +108,14 @@ export class AudioManagerComponent {
      * Spustí hudbu na pozadí
      */
     public startBackgroundMusic(): void {
-        console.log('AudioManager: Pokouším se spustit hudbu na pozadí...');
-        console.log('AudioManager: backgroundMusic existuje:', !!this.backgroundMusic);
-        console.log('AudioManager: isMuted:', this.isMuted);
-
         if (this.backgroundMusic && !this.isMuted) {
             try {
-                console.log('AudioManager: Starting background music...');
                 this.backgroundMusic.play({
                     loop: true,
                     volume: 0.3
                 });
-                console.log('AudioManager: Background music started successfully');
             } catch (error) {
                 console.error('AudioManager: Error starting background music:', error);
-            }
-        } else {
-            if (!this.backgroundMusic) {
-                console.error('AudioManager: Cannot start music - backgroundMusic is null');
-            }
-            if (this.isMuted) {
-                console.log('AudioManager: Cannot start music - audio is muted');
             }
         }
     }

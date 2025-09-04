@@ -66,30 +66,18 @@ export class LivesComponent {
     private onPlayerDestroyed(): void {
         const currentTime = this.scene.time.now;
 
-        // Debounce rychlých smrti - zamezí duplicitním úmrtím
         if (currentTime - this.lastDeathTime < this.deathDebounceTime) {
-            console.log('Death event ignorován kvůli debounce');
             return;
         }
 
         this.lastDeathTime = currentTime;
-
-        console.log(`Hráč zničen! Současné životy před: ${this.currentLives}`);
         this.loseLife();
-        console.log(`Životy po ztrátě jednoho: ${this.currentLives}`);
 
-        // Zkontrolovat zda má hráč respawnovat
         if (this.currentLives > 0) {
-            console.log('Hráč se respawnuje za 1 sekundu');
-            // Hráč má ještě životy, respawnovat po prodlevě
             this.scene.time.delayedCall(1000, () => {
-                console.log('Emitování PLAYER_SPAWN eventu');
                 this.eventBusComponent.emit(CUSTOM_EVENTS.PLAYER_SPAWN);
             });
-        } else {
-            console.log('Žádné životy nezůstaly - game over!');
         }
-        // Pokud nezůstaly životy, game over je už emitován v loseLife()
     }
 
     /**

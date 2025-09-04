@@ -19,7 +19,6 @@ import { HealthComponent } from './health/HealthComponent';
 import { ColliderComponent } from './collider/ColliderComponent';
 import { EventBusComponent, CUSTOM_EVENTS } from './events/EventBusComponent';
 import { AsteroidShard } from './AsteroidShard';
-import { ShieldPowerUp } from './ShieldPowerUp';
 import { AsteroidHealthBarComponent } from './ui/AsteroidHealthBarComponent';
 
 export class Asteroid extends Phaser.GameObjects.Sprite {
@@ -118,6 +117,12 @@ export class Asteroid extends Phaser.GameObjects.Sprite {
         // Poslouchat zničení asteroidu
         this.eventBusComponent.on(CUSTOM_EVENTS.ENEMY_DESTROYED, (asteroid: Asteroid) => {
             if (asteroid === this && this.active) {
+                // Emitovat tracking event o zničení
+                const asteroidType = (this as any).asteroidType;
+                if (asteroidType) {
+                    this.eventBusComponent.emit('ASTEROID_DESTROYED', asteroidType);
+                }
+
                 // Vytvořit shatter efekt před deaktivací
                 this.shatterIntoShards();
 
@@ -126,7 +131,6 @@ export class Asteroid extends Phaser.GameObjects.Sprite {
 
                 this.setActive(false);
                 this.setVisible(false);
-                // Nezničit okamžitě
             }
         });
 
@@ -161,6 +165,16 @@ export class Asteroid extends Phaser.GameObjects.Sprite {
 
         // Zkontrolovat zda je asteroid mimo hranice (pod obrazovkou)
         if (this.y > this.scene.scale.height + 50) {
+            // Emitovat tracking event o úniku
+            const asteroidType = (this as any).asteroidType;
+            console.log('🌌 Asteroid escaping! Type:', asteroidType, 'Y position:', this.y);
+            if (asteroidType) {
+                this.eventBusComponent.emit('ASTEROID_ESCAPED', asteroidType);
+                console.log('  ✅ ASTEROID_ESCAPED event emitted for:', asteroidType);
+            } else {
+                console.log('  ❌ ERROR: No asteroidType set for escaping asteroid!');
+            }
+
             this.destroy();
         }
     }
@@ -227,23 +241,8 @@ export class Asteroid extends Phaser.GameObjects.Sprite {
             }
         }
 
-        // Šance na drop shield power-upu (2% šance pro 1-2 power-upy za minutu)
-        this.tryDropShieldPowerUp();
-    }
-
-    /**
-     * Zkusí spawnnout shield power-up s určitou pravděpodobností
-     */
-    private tryDropShieldPowerUp(): void {
-        const dropChance = Math.random();
-
-        // 8% šance na drop shield power-upu (zvýšeno z 2% pro frekvenci 2-5 power-upů za minutu)
-        if (dropChance < 0.08) {
-            console.log('Spawning shield power-up at:', this.x, this.y);
-
-            // Vytvořit ShieldPowerUp
-            new ShieldPowerUp(this.scene, this.x, this.y, this.eventBusComponent);
-        }
+        // Starý shield power-up systém vymazán
+        // Používáme nový SimpleShieldComponent s klávesou C
     }
 
     /**
